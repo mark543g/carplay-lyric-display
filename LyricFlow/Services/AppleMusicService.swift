@@ -30,7 +30,7 @@ final class AppleMusicService: NSObject {
 
         let center = NotificationCenter.default
         observers.append(center.addObserver(
-            forName: MPMusicPlayerController.nowPlayingItemDidChangeNotification,
+            forName: MPMusicPlayerControllerNowPlayingItemDidChangeNotification,
             object: player, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -38,7 +38,7 @@ final class AppleMusicService: NSObject {
             }
         })
         observers.append(center.addObserver(
-            forName: MPMusicPlayerController.playbackStateDidChangeNotification,
+            forName: MPMusicPlayerControllerPlaybackStateDidChangeNotification,
             object: player, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -133,8 +133,8 @@ final class AppleMusicService: NSObject {
         isrcTask?.cancel()
         isrcTask = Task { [weak self] in
             guard let isrc = await self?.resolveISRC(for: track), !Task.isCancelled else { return }
-            // 僅在仍是同一首歌時套用
-            guard let current = self?.lastTrack, current.id == track.id else { return }
+            // 僅在仍是同一首歌時套用(Track 為 struct,需以 var 取出修改)
+            guard var current = self?.lastTrack, current.id == track.id else { return }
             current.isrc = isrc
             self?.lastTrack = current
             self?.onTrackChange?(current)

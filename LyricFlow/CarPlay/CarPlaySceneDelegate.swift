@@ -11,11 +11,10 @@ import UIKit
 /// - 目前行:原文 + 譯文(CPListItem text / detailText)
 /// - 接下來 6 行:預覽歌詞
 ///
-/// [建置修正] `CPTemplateApplicationSceneDelegate` 的連線回呼有兩組變體:
-/// - 音訊類 App:`templateApplicationScene(_:didConnect:)` / `(_:didDisconnectInterfaceController:)`
-/// - 導航類 App:`templateApplicationScene(_:didConnect:to:)` / `(_:didDisconnect:from:)`
-/// 本 App 屬音訊類,系統呼叫前者;兩組都實作以確保相容。
-/// 每行更新直接改動 `CPListItem` 的屬性,CarPlay 會自動刷新對應列(CPListItem 為 mutable)。
+/// [建置修正] `CPListItem.text / detailText` 為唯讀 —— 更新內容時需
+/// **重建 items 陣列並以 `CPListTemplate.updateSections(_:)` 替換**。
+/// `CPTemplateApplicationSceneDelegate` 連線回呼有兩組變體
+/// (音訊類 App 走 `didConnect:` 無 window 版),兩組皆實作確保相容。
 @MainActor
 final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
 
@@ -24,7 +23,6 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
 
     /// 固定顯示 1(當前)+ 6(後續)行
     private static let previewLineCount = 6
-    private var lineItems: [CPListItem] = []
 
     // MARK: - 場景生命週期(音訊 App 變體 —— 本 App 實際走這裡)
 
@@ -65,8 +63,20 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
     private func attach(interfaceController: CPInterfaceController) {
         self.interfaceController = interfaceController
         CarPlayLyricsBridge.shared.sceneDelegate = self
-        rebuildForTrack(
-            track: CarPlayLyricsBridge.shared.currentTrack,
+
+        // 建立根模板(初始為空狀態),內容隨後由 updateLines 填入
+        let template = CPListTemplate(
+            title: CarPlayLyricsBridge.shared.currentTrack?.title ?? "LyricFlow 歌詞",
+            sections: [CPListSection(items: [CPListItem(text: "搜尋歌詞中…", detailText: nil)])]
+        )
+        lyricsTemplate = template
+        interfaceController.setRootTemplate(template, animated: true, completion: nil)
+
+        updateLines(
+            index: nil,
+            text: nil,
+            translation: nil,
+            nextText: nil,
             lyrics: CarPlayLyricsBridge.shared.currentLyrics
         )
     }
@@ -74,7 +84,6 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
     private func detach() {
         interfaceController = nil
         lyricsTemplate = nil
-        lineItems = []
         if CarPlayLyricsBridge.shared.sceneDelegate === self {
             CarPlayLyricsBridge.shared.sceneDelegate = nil
         }
@@ -82,72 +91,73 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
 
     // MARK: - 內容更新(由 CarPlayLyricsBridge 呼叫)
 
+    /// 換歌時呼叫:重建列表內容。
+    /// (模板標題在 attach 時固定,CPListTemplate.title 的可寫性不確定故不觸碰)
     func rebuildForTrack(track: Track?, lyrics: LyricsDocument?) {
-        guard let interfaceController else { return }
-
-        let items = (0...Self.previewLineCount).map { _ in
-            CPListItem(text: "", detailText: nil)
-        }
-        lineItems = items
-        let section = CPListSection(items: items)
-        let template = CPListTemplate(title: track?.title ?? "LyricFlow 歌詞", sections: [section])
-        lyricsTemplate = template
-
-        interfaceController.setRootTemplate(template, animated: true, completion: nil)
         updateLines(index: nil, text: nil, translation: nil, nextText: nil, lyrics: lyrics)
-        applyEmptyState(track: track, lyrics: lyrics)
     }
 
+    /// 歌詞行推進時呼叫:重建 items 並以 updateSections 送回模板。
     func updateLines(index: Int?, text: String?, translation: String?, nextText: String?, lyrics: LyricsDocument?) {
-        guard !lineItems.isEmpty else { return }
+        guard let template = lyricsTemplate else { return }
 
-        guard let index, let text else {
-            applyEmptyState(track: CarPlayLyricsBridge.shared.currentTrack, lyrics: lyrics)
-            return
-        }
-
-        // 第 0 項:當前行(原文 + 譯文)
-        lineItems[0].text = text
-        lineItems[0].detailText = (translation?.isEmpty == true) ? nil : translation
-
-        // 後續 6 行:預覽
-        let allLines = lyrics?.lines ?? []
-        for offset in 0..<Self.previewLineCount {
-            let itemIndex = offset + 1
-            let lineIndex = index + offset + 1
-            if lineIndex < allLines.count {
-                lineItems[itemIndex].text = allLines[lineIndex].text
-                lineItems[itemIndex].detailText = nil
-            } else {
-                lineItems[itemIndex].text = ""
-                lineItems[itemIndex].detailText = nil
-            }
-        }
+        let items = Self.makeItems(
+            index: index,
+            text: text,
+            translation: translation,
+            lyrics: lyrics,
+            track: CarPlayLyricsBridge.shared.currentTrack
+        )
+        template.updateSections([CPListSection(items: items)])
     }
 
     func updatePlaybackState(isPlaying: Bool) {
         // 播放狀態目前僅供橋接器記錄;畫面無需動作
     }
 
-    private func applyEmptyState(track: Track?, lyrics: LyricsDocument?) {
-        guard let first = lineItems.first else { return }
-        if track == nil {
-            first.text = "未偵測到播放中的音樂"
-            first.detailText = "請在 iPhone 上開始播放 Apple Music 或 Spotify"
-            for item in lineItems.dropFirst() {
-                item.text = ""
-                item.detailText = nil
-            }
-        } else if lyrics == nil {
-            first.text = "搜尋歌詞中…"
-            first.detailText = track.map { "\($0.title) — \($0.artist)" }
-            for item in lineItems.dropFirst() {
-                item.text = ""
-                item.detailText = nil
-            }
-        } else if lyrics?.isSynced == false {
-            first.text = "此曲僅提供純文字歌詞"
-            first.detailText = track.map { "\($0.title) — \($0.artist)" }
+    // MARK: - items 建構
+
+    private static func makeItems(
+        index: Int?,
+        text: String?,
+        translation: String?,
+        lyrics: LyricsDocument?,
+        track: Track?
+    ) -> [CPListItem] {
+        // 無曲目 → 空狀態
+        guard let track else {
+            return [
+                CPListItem(text: "未偵測到播放中的音樂",
+                           detailText: "請在 iPhone 上開始播放 Apple Music 或 Spotify"),
+            ]
         }
+
+        // 有曲目但尚無歌詞 → 搜尋提示
+        guard let lyrics else {
+            return [
+                CPListItem(text: "搜尋歌詞中…", detailText: "\(track.title) — \(track.artist)"),
+            ]
+        }
+
+        // 純文字歌詞 → 提示無同步
+        guard let index, let text, lyrics.isSynced else {
+            if lyrics.isSynced {
+                return [CPListItem(text: "♪", detailText: "\(track.title) — \(track.artist)")]
+            }
+            return [CPListItem(text: "此曲僅提供純文字歌詞", detailText: "\(track.title) — \(track.artist)")]
+        }
+
+        // 當前行(原文 + 譯文)
+        var items = [CPListItem(text: text, detailText: (translation?.isEmpty == true) ? nil : translation)]
+
+        // 後續 6 行預覽
+        let allLines = lyrics.lines
+        for offset in 1...Self.previewLineCount {
+            let lineIndex = index + offset
+            if lineIndex < allLines.count {
+                items.append(CPListItem(text: allLines[lineIndex].text, detailText: nil))
+            }
+        }
+        return items
     }
 }

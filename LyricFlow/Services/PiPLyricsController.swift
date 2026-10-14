@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AVKit
 import CoreMedia
 import CoreVideo
 import UIKit
@@ -129,18 +130,14 @@ final class PiPLyricsController: NSObject, ObservableObject {
         context.draw(cgImage, in: CGRect(origin: .zero, size: size))
 
         guard let formatDescription = createFormatDescription(pixelBuffer) else { return nil }
-        var timing = CMSampleTimingInformation(
-            duration: CMTime(value: 4, timescale: 10),
-            presentationTimeStamp: CMTime(seconds: CACurrentMediaTime(), preferredTimescale: 600),
-            decodeTimeStamp: .invalid
-        )
+        // [建置修正] 改用 CMSampleBufferCreateReadyWithImageBuffer:
+        // - 免除 timing 資訊(displayLayer 依序顯示,節奏由 renderTimer 控制)
+        // - 避開 CMSampleBufferCreateForImageBuffer 在此 SDK 的參數標籤差異
         var sample: CMSampleBuffer?
-        let status = CMSampleBufferCreateForImageBuffer(
+        let status = CMSampleBufferCreateReadyWithImageBuffer(
             allocator: kCFAllocatorDefault,
             imageBuffer: pixelBuffer,
-            dataIsReady: true,
             formatDescription: formatDescription,
-            sampleTimingOut: &timing,
             sampleBufferOut: &sample
         )
         guard status == kCVReturnSuccess else { return nil }
@@ -243,7 +240,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
                              y: centerY,
                              width: maxWidth,
                              height: lineBounds.height + 8),
-                options: [.usesLineFragmentOrigin, .usesLineLeading],
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
                 context: nil
             )
 
@@ -259,7 +256,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
                                  y: centerY + lineBounds.height + 28,
                                  width: maxWidth,
                                  height: translationHeight),
-                    options: [.usesLineFragmentOrigin, .usesLineLeading],
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
                     context: nil
                 )
             }

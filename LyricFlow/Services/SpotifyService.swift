@@ -172,7 +172,8 @@ final class SpotifyService: NSObject, ObservableObject {
 
     func next() {
         #if canImport(SpotifyiOS)
-        appRemote?.playerAPI?.skipToNext(nil)
+        // SDK 將 skipToNext: 匯入為 skip(toNext:)
+        appRemote?.playerAPI?.skip(toNext: nil)
         #endif
     }
 
@@ -210,12 +211,12 @@ final class SpotifyService: NSObject, ObservableObject {
     }
 
     private func makeTrack(from stateTrack: (any SPTAppRemoteTrack)?) -> Track? {
-        guard let stateTrack, !stateTrack.name.isEmpty, !stateTrack.isAdvertisement else { return nil }
+        guard let stateTrack, let name = stateTrack.name, !name.isEmpty, !stateTrack.isAdvertisement else { return nil }
         let artist = stateTrack.artist?.name ?? "未知歌手"
         let album = stateTrack.album?.name
         let track = Track(
-            id: Track.makeID(title: stateTrack.name, artist: artist, source: .spotify),
-            title: stateTrack.name,
+            id: Track.makeID(title: name, artist: artist, source: .spotify),
+            title: name,
             artist: artist,
             album: album,
             duration: TimeInterval(stateTrack.duration) / 1000,
@@ -230,7 +231,7 @@ final class SpotifyService: NSObject, ObservableObject {
         remote.imageAPI?.fetchImage(forItem: stateTrack, withSize: CGSize(width: 256, height: 256)) { [weak self] result, _ in
             guard let image = result as? UIImage, let data = image.pngData() else { return }
             Task { @MainActor in
-                guard let current = self?.lastTrack, current.id == trackID else { return }
+                guard var current = self?.lastTrack, current.id == trackID else { return }
                 current.artworkPNG = data
                 self?.lastTrack = current
                 self?.onTrackChange?(current)

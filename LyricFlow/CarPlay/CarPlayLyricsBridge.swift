@@ -38,6 +38,6 @@ final class CarPlayLyricsBridge {
 
     func playbackStateChanged(isPlaying: Bool) {
         self.isPlaying = isPlaying
-        sceneDelegate?.updatePlaybackState(isPlaying)
+        sceneDelegate?.updatePlaybackState(isPlaying: isPlaying)
     }
 }
