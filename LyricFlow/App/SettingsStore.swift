@@ -97,8 +97,7 @@ final class SettingsStore: ObservableObject {
         let savedLanguage = defaults.string(forKey: Keys.targetLanguage)
         targetLanguage = savedLanguage ?? "zh-Hant"
 
-        // [稽核 F1 修補] 憑證自 Keychain 載入;並一次性遷移舊版殘留在 UserDefaults 的明文金鑰
-        migrateLegacyCredentialsIfNeeded()
+        // [稽核 F1 修補] 憑證自 Keychain 載入
         musixmatchKey = KeychainStore.load(Keys.musixmatchKey) ?? ""
         spotifyClientID = KeychainStore.load(Keys.spotifyClientID) ?? ""
         liveActivityEnabled = defaults.object(forKey: Keys.liveActivityEnabled) as? Bool ?? true
@@ -115,6 +114,10 @@ final class SettingsStore: ObservableObject {
         }
 
         spotifyConnectedOnce = defaults.bool(forKey: Keys.spotifyConnectedOnce)
+
+        // 注意:Swift 規定所有儲存屬性初始化完成後才能呼叫實體方法
+        // (編譯器第 8 輪指出:此呼叫必須放在 init 結尾)
+        migrateLegacyCredentialsIfNeeded()
     }
 
     /// 舊版本曾把憑證寫進 UserDefaults:遷移至 Keychain 後立即從 UserDefaults 清除。
