@@ -167,7 +167,9 @@ struct LyricsWidgetView: View {
             }
         }
         .containerBackground(for: .widget) {
-            Color.black.gradient
+            // 注意:此閉包是 @ViewBuilder,AnyGradient 不符合 View(編譯錯誤),
+            // 需用 Color 或明確的 LinearGradient
+            Color.black
         }
         // 背景(含 CarPlay/StandBy 移除支援)由上方的 containerBackground(for: .widget) 完整處理:
         // 使用 containerBackground 即代表背景「可移除」,無需再額外宣告
@@ -324,7 +326,6 @@ private struct LargeLyricsView: View {
 
 // MARK: - 鎖定畫面配件
 
-@ViewBuilder
 private struct InlineLyricsView: View {
     let entry: LyricsWidgetEntry
 
