@@ -58,7 +58,7 @@ jobs:
           ls -lh Vendor/
 
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: INCLUDE_SPOTIFY=true xcodegen generate
 
       - name: Build (Release, unsigned)
         env:
@@ -122,6 +122,40 @@ jobs:
           path: LyricFlow-unsigned.ipa
           retention-days: 14
           if-no-files-found: error
+
+      # ============================================================
+      # 建置成功後:把「IPA 解剖報告」發到 Issue,供遠端驗證
+      # (確認 Spotify framework 已嵌入、dyld 相依正確)
+      # ============================================================
+      - name: IPA anatomy report (post to issue for remote verification)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APP=$(find build/DerivedData/Build/Products -maxdepth 3 -type d -name "LyricFlow.app" | head -n 1)
+          {
+            echo "IPA anatomy(commit $GITHUB_SHA)"
+            echo "=== Frameworks 目錄(Spotify 是否已嵌入)==="
+            ls -la "$APP/Frameworks" 2>/dev/null || echo "(無 Frameworks 目錄)"
+            echo "=== 主程式 binary 連結相依(otool -L)==="
+            otool -L "$APP/LyricFlow" 2>/dev/null | head -n 25
+            echo "=== IPA 檔案清單(前 30 行)==="
+            unzip -l LyricFlow-unsigned.ipa | head -n 30
+            echo "=== Widget extension 是否嵌入 ==="
+            ls "$APP/PlugIns" 2>/dev/null || echo "(無 PlugIns)"
+          } > anatomy.txt
+          PAYLOAD=$(jq -n --arg b "$(cat anatomy.txt)" '{body: $b}')
+          EXISTING=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues?state=open&per_page=30" \
+            | jq -r '.[] | select(.title == "Build failure auto-report") | .number' | head -n 1)
+          if [ -n "$EXISTING" ]; then
+            curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues/$EXISTING/comments" \
+              -d "$PAYLOAD" > /dev/null
+            echo "anatomy 報告已發到 issue #$EXISTING"
+          else
+            echo "(找不到既有 issue,略過發佈 —— 報告仍在 build log)"
+          fi
 
       # ============================================================
       # 失敗時:把錯誤摘要自動發到 GitHub Issue(可匿名讀取 → 遠端除錯)

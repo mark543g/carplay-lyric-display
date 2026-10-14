@@ -1,0 +1,12 @@
+# Spotify App Remote SDK 連結設定 —— 由 CI 以 INCLUDE_SPOTIFY=true 啟用。
+# (XcodeGen include 的 dependencies 會「附加」合併到既有依賴陣列)
+#
+# 關鍵:以 framework 依賴形式宣告,XcodeGen 會同時:
+#   1. LINK   → 連結 Vendor/SpotifyiOS.xcframework
+#   2. EMBED  → 複製進 .app/Frameworks(embed: true,App target 預設即為 true,此處明示)
+# 未啟用此 include(本機、無 SDK)時,專案完全不引用 Vendor,照樣建置。
+targets:
+  LyricFlow:
+    dependencies:
+      - framework: Vendor/SpotifyiOS.xcframework
+        embed: true

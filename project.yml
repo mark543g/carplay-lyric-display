@@ -2,6 +2,13 @@
 # https://github.com/yonaskolb/XcodeGen
 name: LyricFlow
 
+# Spotify SDK 以「顯式 framework 依賴」連結+嵌入(CI 設 INCLUDE_SPOTIFY=true 啟用;
+# 未設時此 include 跳過,專案不引用 Vendor,照樣可建置)。
+# ⚠️ 不可把 Vendor 放進 sources:那只會連結不會嵌入,導致裝置上 dyld 閃退。
+include:
+  - path: project.spotify.yml
+    enable: ${INCLUDE_SPOTIFY}
+
 options:
   bundleIdPrefix: com.lab
   deploymentTarget:
@@ -31,10 +38,6 @@ targets:
     sources:
       - path: LyricFlow
       - path: Shared
-      # Spotify App Remote SDK:放置 Vendor/SpotifyiOS.xcframework 即自動連結嵌入。
-      # CI 工作流會自動下載;本機不存在也照樣建置(Spotify 功能停用,canImport 保護)。
-      - path: Vendor
-        optional: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.lab.lyricflow
