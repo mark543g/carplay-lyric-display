@@ -51,7 +51,15 @@ final class LyricsSearchService {
                 }
             }
 
-            // 2) LRCLIB
+            // 2) 網易雲(免金鑰;華語/日韓覆蓋強,含官方翻譯 tlyric)
+            let netease = NetEaseProvider()
+            if let document = try? await netease.findLyrics(for: track) {
+                if Task.isCancelled { return nil }
+                self.memoryCache[track.id] = document
+                return document
+            }
+
+            // 3) LRCLIB(免金鑰,開源歌詞庫)
             let lrclib = LRCLIBProvider()
             if let document = try? await lrclib.findLyrics(for: track) {
                 if Task.isCancelled { return nil }
@@ -59,9 +67,14 @@ final class LyricsSearchService {
                 return document
             }
 
-            // 3) 以清潔後的標題重試一次(去除「(Official Video)」等雜訊)
+            // 4) 以清潔後的標題重試一次(去除「(Official Video)」等雜訊;網易雲 → LRCLIB)
             let cleanedTrack = Self.cleaned(track)
             if cleanedTrack.id != track.id {
+                if let document = try? await netease.findLyrics(for: cleanedTrack) {
+                    if Task.isCancelled { return nil }
+                    self.memoryCache[track.id] = document
+                    return document
+                }
                 if let document = try? await lrclib.findLyrics(for: cleanedTrack) {
                     if Task.isCancelled { return nil }
                     self.memoryCache[track.id] = document

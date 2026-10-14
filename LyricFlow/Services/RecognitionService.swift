@@ -69,7 +69,7 @@ final class RecognitionService: ObservableObject {
                 self.state = .noMatch
 
             case .error(let error, _):
-                self.state = .failed(error.localizedDescription)
+                self.state = .failed(Self.friendlyMessage(for: error))
             }
         }
     }
@@ -88,6 +88,19 @@ final class RecognitionService: ObservableObject {
         recognizedTrack = nil
         isrc = nil
         appleMusicURL = nil
+    }
+
+    /// 將 ShazamKit 錯誤轉為可操作說明。
+    /// 錯誤 202(matchAttemptFailed,目錄服務拒絕比對):最常見原因是
+    /// App ID 未啟用 ShazamKit 功能 —— 免費 Apple ID 佈建核發不出此 capability。
+    private static func friendlyMessage(for error: Error) -> String {
+        let nsError = error as NSError
+        if nsError.domain.localizedCaseInsensitiveContains("shazamkit"), nsError.code == 202 {
+            return "Shazam 目錄比對被拒(錯誤 202):此安裝的簽章未含 ShazamKit 功能。\n"
+                + "免費 Apple ID 佈建無法核發該權限;需 Apple Developer Program(付費)帳號,"
+                + "並在 developer.apple.com 為 App ID 啟用 ShazamKit 後重新簽章。"
+        }
+        return nsError.localizedDescription
     }
 
     private static let maxArtworkBytes = 5 * 1024 * 1024

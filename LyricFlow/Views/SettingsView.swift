@@ -72,7 +72,7 @@ struct SettingsView: View {
         } header: {
             Text("歌詞來源")
         } footer: {
-            Text("查詢順序:Musixmatch(ISRC / 曲目精準比對)→ LRCLIB(開源歌詞庫)。Musixmatch Key 可於 developer.musixmatch.com 申請,留空則僅使用 LRCLIB。")
+            Text("查詢順序:Musixmatch(若有 Key)→ 網易雲(免金鑰,華語/日韓覆蓋強、含官方翻譯)→ LRCLIB(開源歌詞庫,免金鑰)。Musixmatch 開發者方案已改為付費,留空即可,App 會自動使用後兩者。")
         }
     }
 
@@ -176,7 +176,7 @@ struct SettingsView: View {
         } header: {
             Text("Spotify")
         } footer: {
-            Text("到 developer.spotify.com 建立 App,Redirect URI 填入上方的 lyricflow://spotify-callback,並把 Client ID 貼到這裡。連線時會開啟 Spotify App 進行授權。")
+            Text("到 developer.spotify.com 建立 App,Redirect URI 填入上方的 lyricflow://spotify-callback,並把 Client ID 貼到這裡。連線時會開啟 Spotify App 進行授權。曾連線成功後,之後啟動 App 會以快取權杖自動靜默連線(權杖效期內);權杖過期後再點一次連線即可。")
         }
     }
 

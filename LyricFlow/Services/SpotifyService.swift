@@ -109,6 +109,13 @@ final class SpotifyService: NSObject, ObservableObject {
         }
         if let token = parameters[SPTAppRemoteAccessTokenKey] {
             remote.connectionParameters.accessToken = token
+            // [自動連線] 保存權杖到 Keychain(短期效期;有效期間啟動 App 可靜默連線)
+            let expiresIn = Self.expiresIn(from: url)
+            KeychainStore.save(token, forKey: Self.tokenKeychainKey)
+            KeychainStore.save(
+                String(Date().addingTimeInterval(expiresIn - 60).timeIntervalSince1970),
+                forKey: Self.tokenExpiryKeychainKey
+            )
             connectionState = .connecting
             remote.connect()
             return true
@@ -122,22 +129,76 @@ final class SpotifyService: NSObject, ObservableObject {
         appRemote?.playerAPI?.delegate = nil
         appRemote?.disconnect()
         #endif
+        // [自動連線] 主動斷線時同步清除快取權杖
+        KeychainStore.delete(forKey: Self.tokenKeychainKey)
+        KeychainStore.delete(forKey: Self.tokenExpiryKeychainKey)
         connectionState = .disconnected
         lastPlayerState = nil
         lastTrack = nil
         onTrackChange?(nil)
     }
 
-    /// Spotify App 前景恢復時重新連線(需已持有 access token)。
-    func reconnectIfPossible() {
+    // MARK: - 自動連線(Spotify 權杖快取)
+
+    private static let tokenKeychainKey = "spotifyAccessToken"
+    private static let tokenExpiryKeychainKey = "spotifyTokenExpiry"
+
+    /// 啟動/回前景時自動連線:
+    /// 1. 同一次執行內已有 in-memory 權杖 → 直接重連
+    /// 2. Keychain 快取權杖未過期 → 靜默連線(不跳 Spotify App)
+    /// 權杖過期後不自動跳轉重新授權 —— authorizeAndPlayURI 會自動播放
+    /// 上一首歌,打斷使用者正在聽的內容,故保留手動一鍵重連。
+    func autoConnect(clientID: String) {
         #if canImport(SpotifyiOS)
-        guard let remote = appRemote,
-              !remote.isConnected,
-              !(remote.connectionParameters.accessToken ?? "").isEmpty
-        else { return }
+        guard connectionState == .disconnected || connectionState == .failed else { return }
+        guard !clientID.trimmed.isEmpty else { return }
+
+        // 1) in-memory 權杖(前景恢復)
+        if let remote = appRemote, !remote.isConnected,
+           !(remote.connectionParameters.accessToken ?? "").isEmpty {
+            connectionState = .connecting
+            remote.connect()
+            return
+        }
+
+        // 2) Keychain 快取權杖
+        guard Self.cachedToken() != nil else { return }
+
+        if appRemote == nil {
+            let configuration = SPTConfiguration(clientID: clientID, redirectURL: AppConstants.spotifyRedirectURL)
+            let remote = SPTAppRemote(configuration: configuration, logLevel: .none)
+            remote.delegate = self
+            appRemote = remote
+        }
+        appRemote?.connectionParameters.accessToken = Self.cachedToken()
         connectionState = .connecting
-        remote.connect()
+        appRemote?.connect()
         #endif
+    }
+
+    /// 取得未過期的快取權杖(過期或無 → nil)。
+    private static func cachedToken() -> String? {
+        guard let token = KeychainStore.load(Self.tokenKeychainKey),
+              !token.isEmpty,
+              let expiryRaw = KeychainStore.load(Self.tokenExpiryKeychainKey),
+              let expiry = Double(expiryRaw),
+              expiry > Date().timeIntervalSince1970
+        else { return nil }
+        return token
+    }
+
+    /// 從回呼 URL 解析 expires_in(秒);無則預設 3600。
+    private static func expiresIn(from url: URL) -> TimeInterval {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let raw = components.queryItems?.first(where: { $0.name == "expires_in" })?.value,
+              let seconds = TimeInterval(raw)
+        else { return 3600 }
+        return seconds
+    }
+
+    /// 快取權杖是否仍有效(供設定頁顯示提示)。
+    var hasValidCachedToken: Bool {
+        Self.cachedToken() != nil
     }
 
     // MARK: - 播放狀態讀取

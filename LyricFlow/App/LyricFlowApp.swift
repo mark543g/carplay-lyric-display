@@ -23,6 +23,10 @@ struct LyricFlowApp: App {
                 .tint(.pink)
                 .onAppear {
                     center.start()
+                    // 冷啟動:以 Keychain 快取權杖自動靜默連線 Spotify(不跳轉)
+                    if settings.spotifyConnectedOnce, !settings.spotifyClientID.trimmed.isEmpty {
+                        SpotifyService.shared.autoConnect(clientID: settings.spotifyClientID)
+                    }
                 }
                 .onOpenURL { url in
                     // Spotify App Remote 授權回跳
@@ -30,9 +34,9 @@ struct LyricFlowApp: App {
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
-                        // 回前景:若曾連線 Spotify,嘗試恢復 App Remote 連線
+                        // 回前景:自動連線(in-memory 權杖 → 快取權杖,皆靜默)
                         if settings.spotifyConnectedOnce, !settings.spotifyClientID.trimmed.isEmpty {
-                            SpotifyService.shared.reconnectIfPossible()
+                            SpotifyService.shared.autoConnect(clientID: settings.spotifyClientID)
                         }
                     }
                 }

@@ -87,6 +87,12 @@ final class TranslationService: ObservableObject {
             return [:]
         }
 
+        // 來源已附官方翻譯(如網易雲 tlyric,過半行數)→ 直接沿用,不呼叫 Apple Translation
+        if document.translations.count >= document.lines.count / 2 {
+            state = .done
+            return document.translations
+        }
+
         // 偵測原語言
         let sourceCode = detectLanguage(of: texts.joined(separator: "\n")) ?? "en"
         if sourceCode == targetLanguage {
