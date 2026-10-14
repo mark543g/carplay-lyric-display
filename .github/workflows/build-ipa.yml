@@ -82,6 +82,8 @@ jobs:
           if [ "${BUILD_FAILED:-0}" = "1" ]; then
             echo "================ ❌ 編譯錯誤摘要(去重)================"
             grep -E "error: " build.log | sort -u | head -n 80 || echo "(未擷取到 error: 行)"
+            echo "================ 協定一致性/其他診斷 note ================"
+            grep -E "note: " build.log | sort -u | head -n 40 || true
             echo "================ log 結尾 60 行 ================"
             tail -n 60 build.log
             exit 1
@@ -130,6 +132,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ERROR_SUMMARY=$(grep -E "error: " build.log | sort -u | head -n 80 || echo "未擷取到 error: 行(可能失敗於更早的步驟)")
+          NOTE_SUMMARY=$(grep -E "note: " build.log | sort -u | head -n 40 || true)
+          if [ -n "$NOTE_SUMMARY" ]; then
+            ERROR_SUMMARY="${ERROR_SUMMARY}
+
+--- 診斷 note ---
+${NOTE_SUMMARY}"
+          fi
           LOG_LINK="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           BODY=$(printf '%s\n\n%s\n%s\n%s\n\n%s %s' \
             "建置失敗(commit $GITHUB_SHA)" \

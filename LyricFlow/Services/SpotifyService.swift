@@ -229,11 +229,12 @@ final class SpotifyService: NSObject, ObservableObject {
 
     private func fetchArtwork(for stateTrack: any SPTAppRemoteTrack, trackID: String?) {
         guard let remote = appRemote, let trackID else { return }
-        // SDK 將 fetchImageForItem:withSize:callback: 匯入為 async 版本(無 callback 參數)
+        // SDK 將 fetchImageForItem:withSize:callback: 匯入為 async;
+        // 參數標籤為 forItem:with:(編譯器指示)
         Task { @MainActor [weak self] in
             guard let image = try? await remote.imageAPI?.fetchImage(
                       forItem: stateTrack,
-                      withSize: CGSize(width: 256, height: 256)),
+                      with: CGSize(width: 256, height: 256)),
                   let data = image.pngData() else { return }
             guard var current = self?.lastTrack, current.id == trackID else { return }
             current.artworkPNG = data

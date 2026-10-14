@@ -284,10 +284,8 @@ final class PiPLyricsController: NSObject, ObservableObject {
 }
 
 // MARK: - AVPictureInPictureSampleBufferPlaybackDelegate
-// 協定的必要方法(官方文件確認的確切簽名):
-// - pictureInPictureController(_:setPlaying:)
-// - pictureInPictureControllerTimeRangeForPlayback(_:) -> CMTimeRange
-// - pictureInPictureControllerIsPlaybackPaused(_:) -> Bool
+// 協定方法(官方文件確認的確切簽名);除最基本三個外,
+// 另外三個(可能為必要)一併實作 —— 多實作選填方法無副作用,確保一致性成立。
 
 extension PiPLyricsController: AVPictureInPictureSampleBufferPlaybackDelegate {
 
@@ -308,6 +306,29 @@ extension PiPLyricsController: AVPictureInPictureSampleBufferPlaybackDelegate {
         _ pictureInPictureController: AVPictureInPictureController
     ) -> Bool {
         // 歌詞畫格由 renderTimer 持續推送;回傳 false 讓系統 UI 顯示為播放中
+        false
+    }
+
+    func pictureInPictureController(
+        _ pictureInPictureController: AVPictureInPictureController,
+        didTransitionToRenderSize renderSize: CMVideoDimensions
+    ) {
+        // 歌詞版面固定 1280x720 渲染,尺寸變化不需處理
+    }
+
+    func pictureInPictureController(
+        _ pictureInPictureController: AVPictureInPictureController,
+        skipByInterval timeInterval: CMTime,
+        completion: @escaping () -> Void
+    ) {
+        // 快轉/倒轉對歌詞無意義;直接完成
+        completion()
+    }
+
+    func pictureInPictureControllerShouldProhibitBackgroundAudioPlayback(
+        _ pictureInPictureController: AVPictureInPictureController
+    ) -> Bool {
+        // 不禁止背景音訊(音樂本身由其他 App 播放)
         false
     }
 }

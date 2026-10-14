@@ -96,7 +96,8 @@ struct BilingualLineView: View {
             if let translation, !translation.isEmpty {
                 Text(translation)
                     .font(.system(size: 15, weight: isActive ? .semibold : .regular))
-                    .foregroundStyle(isActive ? .primary.opacity(0.85) : .secondary.opacity(0.7))
+                    // Color.primary/.secondary 為 Color 成員,可安全 .opacity(避免 ShapeStyle 不透明型別在三元運算中無法統一)
+                    .foregroundStyle(isActive ? Color.primary.opacity(0.85) : Color.secondary.opacity(0.7))
             }
         }
         .opacity(isActive ? 1 : 0.6)
