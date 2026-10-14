@@ -130,14 +130,15 @@ final class PiPLyricsController: NSObject, ObservableObject {
         context.draw(cgImage, in: CGRect(origin: .zero, size: size))
 
         guard let formatDescription = createFormatDescription(pixelBuffer) else { return nil }
-        // [建置修正] 改用 CMSampleBufferCreateReadyWithImageBuffer:
-        // - 免除 timing 資訊(displayLayer 依序顯示,節奏由 renderTimer 控制)
-        // - 避開 CMSampleBufferCreateForImageBuffer 在此 SDK 的參數標籤差異
+        // 官方常數 CMSampleTimingInfo.invalid(全 invalid 的 timing);
+        // displayLayer 依序顯示畫格,節奏由 renderTimer 控制
+        var timing = CMSampleTimingInfo.invalid
         var sample: CMSampleBuffer?
         let status = CMSampleBufferCreateReadyWithImageBuffer(
             allocator: kCFAllocatorDefault,
             imageBuffer: pixelBuffer,
             formatDescription: formatDescription,
+            sampleTiming: &timing,
             sampleBufferOut: &sample
         )
         guard status == kCVReturnSuccess else { return nil }
@@ -283,6 +284,10 @@ final class PiPLyricsController: NSObject, ObservableObject {
 }
 
 // MARK: - AVPictureInPictureSampleBufferPlaybackDelegate
+// 協定的必要方法(官方文件確認的確切簽名):
+// - pictureInPictureController(_:setPlaying:)
+// - pictureInPictureControllerTimeRangeForPlayback(_:) -> CMTimeRange
+// - pictureInPictureControllerIsPlaybackPaused(_:) -> Bool
 
 extension PiPLyricsController: AVPictureInPictureSampleBufferPlaybackDelegate {
 
@@ -293,16 +298,17 @@ extension PiPLyricsController: AVPictureInPictureSampleBufferPlaybackDelegate {
         // 歌詞 PiP 不提供播放控制;維持當前狀態
     }
 
-    func pictureInPictureControllerTimeRangeDidChange(
+    func pictureInPictureControllerTimeRangeForPlayback(
         _ pictureInPictureController: AVPictureInPictureController
-    ) {
-        // no-op
+    ) -> CMTimeRange {
+        CMTimeRange(start: .zero, duration: .positiveInfinity)
     }
 
-    func pictureInPictureControllerIsPlaybackPausedDidChange(
+    func pictureInPictureControllerIsPlaybackPaused(
         _ pictureInPictureController: AVPictureInPictureController
-    ) {
-        // no-op:暫停與否由音樂 App 控制,畫格持續推送
+    ) -> Bool {
+        // 歌詞畫格由 renderTimer 持續推送;回傳 false 讓系統 UI 顯示為播放中
+        false
     }
 }
 

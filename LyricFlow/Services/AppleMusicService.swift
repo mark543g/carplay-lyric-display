@@ -29,8 +29,9 @@ final class AppleMusicService: NSObject {
         player.beginGeneratingPlaybackNotifications()
 
         let center = NotificationCenter.default
+        // 注意:通知常數以 NSNotification.Name 成員形式匯入(去掉 Notification 字尾)
         observers.append(center.addObserver(
-            forName: MPMusicPlayerControllerNowPlayingItemDidChangeNotification,
+            forName: .MPMusicPlayerControllerNowPlayingItemDidChange,
             object: player, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -38,7 +39,7 @@ final class AppleMusicService: NSObject {
             }
         })
         observers.append(center.addObserver(
-            forName: MPMusicPlayerControllerPlaybackStateDidChangeNotification,
+            forName: .MPMusicPlayerControllerPlaybackStateDidChange,
             object: player, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in

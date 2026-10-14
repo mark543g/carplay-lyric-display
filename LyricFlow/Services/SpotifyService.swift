@@ -133,7 +133,7 @@ final class SpotifyService: NSObject, ObservableObject {
         #if canImport(SpotifyiOS)
         guard let remote = appRemote,
               !remote.isConnected,
-              !remote.connectionParameters.accessToken.isEmpty
+              !(remote.connectionParameters.accessToken ?? "").isEmpty
         else { return }
         connectionState = .connecting
         remote.connect()
@@ -179,7 +179,7 @@ final class SpotifyService: NSObject, ObservableObject {
 
     func previous() {
         #if canImport(SpotifyiOS)
-        appRemote?.playerAPI?.skipToPrevious(nil)
+        appRemote?.playerAPI?.skip(toPrevious: nil)
         #endif
     }
 
@@ -211,12 +211,13 @@ final class SpotifyService: NSObject, ObservableObject {
     }
 
     private func makeTrack(from stateTrack: (any SPTAppRemoteTrack)?) -> Track? {
-        guard let stateTrack, let name = stateTrack.name, !name.isEmpty, !stateTrack.isAdvertisement else { return nil }
-        let artist = stateTrack.artist?.name ?? "未知歌手"
-        let album = stateTrack.album?.name
+        // SDK 標頭以 NS_ASSUME_NONNULL 宣告:name / artist / album 皆為非選填
+        guard let stateTrack, !stateTrack.name.isEmpty, !stateTrack.isAdvertisement else { return nil }
+        let artist = stateTrack.artist.name
+        let album = stateTrack.album.name
         let track = Track(
-            id: Track.makeID(title: name, artist: artist, source: .spotify),
-            title: name,
+            id: Track.makeID(title: stateTrack.name, artist: artist, source: .spotify),
+            title: stateTrack.name,
             artist: artist,
             album: album,
             duration: TimeInterval(stateTrack.duration) / 1000,
@@ -228,14 +229,16 @@ final class SpotifyService: NSObject, ObservableObject {
 
     private func fetchArtwork(for stateTrack: any SPTAppRemoteTrack, trackID: String?) {
         guard let remote = appRemote, let trackID else { return }
-        remote.imageAPI?.fetchImage(forItem: stateTrack, withSize: CGSize(width: 256, height: 256)) { [weak self] result, _ in
-            guard let image = result as? UIImage, let data = image.pngData() else { return }
-            Task { @MainActor in
-                guard var current = self?.lastTrack, current.id == trackID else { return }
-                current.artworkPNG = data
-                self?.lastTrack = current
-                self?.onTrackChange?(current)
-            }
+        // SDK 將 fetchImageForItem:withSize:callback: 匯入為 async 版本(無 callback 參數)
+        Task { @MainActor [weak self] in
+            guard let image = try? await remote.imageAPI?.fetchImage(
+                      forItem: stateTrack,
+                      withSize: CGSize(width: 256, height: 256)),
+                  let data = image.pngData() else { return }
+            guard var current = self?.lastTrack, current.id == trackID else { return }
+            current.artworkPNG = data
+            self?.lastTrack = current
+            self?.onTrackChange?(current)
         }
     }
     #endif
@@ -251,7 +254,7 @@ extension SpotifyService: SPTAppRemoteDelegate {
             self.connectionState = .connected
             self.connectionErrorMessage = nil
             appRemote.playerAPI?.delegate = self
-            appRemote.playerAPI?.subscribeToPlayerState(nil)
+            appRemote.playerAPI?.subscribe(toPlayerState: nil)
             appRemote.playerAPI?.getPlayerState { [weak self] result, _ in
                 guard let state = result as? (any SPTAppRemotePlayerState) else { return }
                 Task { @MainActor in

@@ -108,7 +108,13 @@ final class TranslationService: ObservableObject {
         do {
             let source = Locale.Language(identifier: sourceCode)
             let target = Locale.Language(identifier: targetLanguage)
-            let translated = try await translateBatch(texts: texts, source: source, target: target)
+            let translated = try await translateBatch(
+                texts: texts,
+                source: source,
+                target: target,
+                sourceCode: sourceCode,
+                targetCode: targetLanguage
+            )
 
             // 寫入快取
             var cache: [String: String] = [:]
@@ -134,12 +140,19 @@ final class TranslationService: ObservableObject {
     }
 
     /// 批次翻譯(內部分批,每批 64 行,避免單次 session 過大)。
-    private func translateBatch(texts: [String], source: Locale.Language, target: Locale.Language) async throws -> [String] {
+    private func translateBatch(
+        texts: [String],
+        source: Locale.Language,
+        target: Locale.Language,
+        sourceCode: String,
+        targetCode: String
+    ) async throws -> [String] {
         let session: TranslationSession
         do {
             session = try TranslationSession(installedSource: source, target: target)
         } catch {
-            throw TranslationError.languagesNotInstalled(source: source.identifier, target: target.identifier)
+            // 報告用的代碼直接由呼叫端傳入(Locale.Language 無 identifier 成員)
+            throw TranslationError.languagesNotInstalled(source: sourceCode, target: targetCode)
         }
 
         var results: [String] = []

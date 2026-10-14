@@ -93,14 +93,14 @@ struct RecognitionView: View {
             .padding(.vertical, 24)
 
         case .failed(let message):
-            VStack(spacing(8) {
+            VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.largeTitle)
                     .foregroundStyle(.orange)
                 Text(message)
                     .font(.callout)
                     .multilineTextAlignment(.center)
-            })
+            }
             .padding(.vertical, 24)
 
         case .matched:

@@ -8,8 +8,9 @@ struct SettingsView: View {
     @EnvironmentObject private var center: PlaybackCenter
     @EnvironmentObject private var spotify: SpotifyService
 
-    @State private var bootstrapConfig: TranslationSession.Configuration?
     @State private var bootstrapSource = "en"
+    @State private var bootstrapSourceLang: Locale.Language?
+    @State private var bootstrapTargetLang: Locale.Language?
     @State private var bootstrapDone = false
 
     private var bootstrapLanguages: [(code: String, name: String)] {
@@ -97,10 +98,9 @@ struct SettingsView: View {
             }
 
             Button {
-                bootstrapConfig = TranslationSession.Configuration(
-                    source: Locale.Language(identifier: bootstrapSource),
-                    target: Locale.Language(identifier: settings.targetLanguage)
-                )
+                // 以 source:target: 變體觸發翻譯 session
+                bootstrapSourceLang = Locale.Language(identifier: bootstrapSource)
+                bootstrapTargetLang = Locale.Language(identifier: settings.targetLanguage)
             } label: {
                 Label("下載 \(bootstrapLanguages.first { $0.code == bootstrapSource }?.name ?? "") → \(settings.targetLanguageName) 模型", systemImage: "arrow.down.circle")
             }
@@ -115,10 +115,16 @@ struct SettingsView: View {
         } footer: {
             Text("批次翻譯歌詞前,Apple Translation 需先安裝語言模型(離線、免費)。下載一次即可長期使用;偵測到原文語言時會自動套用。")
         }
-        .translationTask($bootstrapConfig) { session in
-            // 觸發語言模型下載/準備
+        .translationTask(source: bootstrapSourceLang, target: bootstrapTargetLang) { session in
+            // 官方文件:此 task 在「首次出現」也會執行 —— source 為 nil 時直接跳過,
+            // 避免開啟設定頁就彈出語言選擇/下載 UI
+            guard bootstrapSourceLang != nil else { return }
+            // 觸發語言模型下載/準備(系統會在需要時顯示下載同意 UI)
             try? await session.prepareTranslation()
             bootstrapDone = true
+            // 歸零以便下次按鈕可重新觸發(nil → 非 nil 的變化才會重跑 task)
+            bootstrapSourceLang = nil
+            bootstrapTargetLang = nil
         }
     }
 

@@ -67,7 +67,8 @@ struct SourceBadge: View {
 
 struct StatusCapsule: View {
     let text: String
-    var tint: Color = .secondary
+    // 注意:預設值不可用 .secondary(那是 ShapeStyle,不是 Color)
+    var tint: Color = .gray
 
     var body: some View {
         Text(text)
