@@ -134,10 +134,7 @@ jobs:
           ERROR_SUMMARY=$(grep -E "error: " build.log | sort -u | head -n 80 || echo "未擷取到 error: 行(可能失敗於更早的步驟)")
           NOTE_SUMMARY=$(grep -E "note: " build.log | sort -u | head -n 40 || true)
           if [ -n "$NOTE_SUMMARY" ]; then
-            ERROR_SUMMARY="${ERROR_SUMMARY}
-
---- 診斷 note ---
-${NOTE_SUMMARY}"
+            ERROR_SUMMARY=$(printf '%s\n\n[診斷 note]\n%s' "$ERROR_SUMMARY" "$NOTE_SUMMARY")
           fi
           LOG_LINK="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           BODY=$(printf '%s\n\n%s\n%s\n%s\n\n%s %s' \
