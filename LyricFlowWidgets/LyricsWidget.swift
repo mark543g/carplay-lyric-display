@@ -169,8 +169,8 @@ struct LyricsWidgetView: View {
         .containerBackground(for: .widget) {
             Color.black.gradient
         }
-        // iOS 26:允許系統在 StandBy / CarPlay 移除背景、以全彩渲染
-        .containerBackgroundRemovable(true)
+        // 背景(含 CarPlay/StandBy 移除支援)由上方的 containerBackground(for: .widget) 完整處理:
+        // 使用 containerBackground 即代表背景「可移除」,無需再額外宣告
     }
 }
 

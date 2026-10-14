@@ -11,8 +11,12 @@ import UIKit
 /// - 目前行:原文 + 譯文(CPListItem text / detailText)
 /// - 接下來 6 行:預覽歌詞
 ///
-/// 每行更新直接改動 `CPListItem` 的屬性,CarPlay 會自動刷新對應列
-/// (CPListItem 為 mutable reference type)。
+/// [建置修正] `CPTemplateApplicationSceneDelegate` 的連線回呼有兩組變體:
+/// - 音訊類 App:`templateApplicationScene(_:didConnect:)` / `(_:didDisconnectInterfaceController:)`
+/// - 導航類 App:`templateApplicationScene(_:didConnect:to:)` / `(_:didDisconnect:from:)`
+/// 本 App 屬音訊類,系統呼叫前者;兩組都實作以確保相容。
+/// 每行更新直接改動 `CPListItem` 的屬性,CarPlay 會自動刷新對應列(CPListItem 為 mutable)。
+@MainActor
 final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
 
     private var interfaceController: CPInterfaceController?
@@ -22,45 +26,66 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
     private static let previewLineCount = 6
     private var lineItems: [CPListItem] = []
 
-    // MARK: - 場景生命週期
+    // MARK: - 場景生命週期(音訊 App 變體 —— 本 App 實際走這裡)
+
+    func templateApplicationScene(
+        _ templateApplicationScene: CPTemplateApplicationScene,
+        didConnect interfaceController: CPInterfaceController
+    ) {
+        attach(interfaceController: interfaceController)
+    }
+
+    func templateApplicationScene(
+        _ templateApplicationScene: CPTemplateApplicationScene,
+        didDisconnectInterfaceController interfaceController: CPInterfaceController
+    ) {
+        detach()
+    }
+
+    // MARK: - 場景生命週期(導航 App 變體 —— 一併實作確保相容)
 
     func templateApplicationScene(
         _ templateApplicationScene: CPTemplateApplicationScene,
         didConnect interfaceController: CPInterfaceController,
         to window: CPWindow
     ) {
-        self.interfaceController = interfaceController
-        Task { @MainActor in
-            CarPlayLyricsBridge.shared.sceneDelegate = self
-            self.rebuildForTrack(
-                track: CarPlayLyricsBridge.shared.currentTrack,
-                lyrics: CarPlayLyricsBridge.shared.currentLyrics
-            )
-        }
+        attach(interfaceController: interfaceController)
     }
 
     func templateApplicationScene(
         _ templateApplicationScene: CPTemplateApplicationScene,
-        didDisconnectInterfaceController interfaceController: CPInterfaceController,
+        didDisconnect interfaceController: CPInterfaceController,
         from window: CPWindow
     ) {
-        self.interfaceController = nil
+        detach()
+    }
+
+    // MARK: - 連接 / 斷開
+
+    private func attach(interfaceController: CPInterfaceController) {
+        self.interfaceController = interfaceController
+        CarPlayLyricsBridge.shared.sceneDelegate = self
+        rebuildForTrack(
+            track: CarPlayLyricsBridge.shared.currentTrack,
+            lyrics: CarPlayLyricsBridge.shared.currentLyrics
+        )
+    }
+
+    private func detach() {
+        interfaceController = nil
         lyricsTemplate = nil
         lineItems = []
-        Task { @MainActor in
-            if CarPlayLyricsBridge.shared.sceneDelegate === self {
-                CarPlayLyricsBridge.shared.sceneDelegate = nil
-            }
+        if CarPlayLyricsBridge.shared.sceneDelegate === self {
+            CarPlayLyricsBridge.shared.sceneDelegate = nil
         }
     }
 
-    // MARK: - 內容更新(由 CarPlayLyricsBridge 主執行緒呼叫)
+    // MARK: - 內容更新(由 CarPlayLyricsBridge 呼叫)
 
-    @MainActor
     func rebuildForTrack(track: Track?, lyrics: LyricsDocument?) {
         guard let interfaceController else { return }
 
-        let items = (0...(Self.previewLineCount)).map { _ in
+        let items = (0...Self.previewLineCount).map { _ in
             CPListItem(text: "", detailText: nil)
         }
         lineItems = items
@@ -73,7 +98,6 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
         applyEmptyState(track: track, lyrics: lyrics)
     }
 
-    @MainActor
     func updateLines(index: Int?, text: String?, translation: String?, nextText: String?, lyrics: LyricsDocument?) {
         guard !lineItems.isEmpty else { return }
 
@@ -82,9 +106,9 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
             return
         }
 
-        // 第 0 项:當前行(原文 + 譯文)
+        // 第 0 項:當前行(原文 + 譯文)
         lineItems[0].text = text
-        lineItems[0].detailText = translation?.isEmpty == true ? nil : translation
+        lineItems[0].detailText = (translation?.isEmpty == true) ? nil : translation
 
         // 後續 6 行:預覽
         let allLines = lyrics?.lines ?? []
@@ -101,12 +125,10 @@ final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
         }
     }
 
-    @MainActor
     func updatePlaybackState(isPlaying: Bool) {
-        // 播放狀態主要影響標題列的提示文字;目前無需動作。
+        // 播放狀態目前僅供橋接器記錄;畫面無需動作
     }
 
-    @MainActor
     private func applyEmptyState(track: Track?, lyrics: LyricsDocument?) {
         guard let first = lineItems.first else { return }
         if track == nil {

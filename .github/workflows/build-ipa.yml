@@ -3,10 +3,10 @@
 # 流程:推送程式碼(或手動觸發)→ 自動產出 LyricFlow-unsigned.ipa
 #      → 到 Actions 頁面下載 → 用 Windows 的 Sideloadly 以你的 Apple ID 重簽安裝。
 #
-# 注意:
-# - 未簽章 IPA 無法直接安裝,必須先經 Sideloadly(Windows 可用)重簽
-# - 免費 Apple ID:7 天效期、最多 3 個 App;付費開發者帳號:1 年效期
-# - 詳細說明見 README.md「沒有 Mac?雲端建置直接拿 IPA」一節
+# 失敗自動除錯迴環:建置失敗時,本工作流會:
+#   1. 在 step 輸出顯示去重後的編譯錯誤摘要
+#   2. 自動把錯誤內容發到 repo 的 GitHub Issue(標題:「🔴 Build failure auto-report」)
+#      → 不用登入也能透過公開 API 讀取,方便遠端協作除錯
 
 name: Build Unsigned IPA
 
@@ -14,6 +14,10 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   build:
@@ -23,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Select newest Xcode (needs iOS 26 SDK)
         run: |
@@ -58,12 +62,8 @@ jobs:
 
       - name: Build (Release, unsigned)
         env:
-          # 免費 Apple ID 救援小工具用:
-          # 1. 先用 Sideloadly 簽一次,在其 App Groups 欄位找到實際核發的 group
-          #    (格式如 group.A1B2C3D4E5.com.lab.lyricflow,免費帳號會強制加 team ID 前綴)
-          # 2. 到 repo → Settings → Secrets and variables → Actions → Variables
-          #    新增 LYRICFLOW_APP_GROUP = 該 group 完整 ID
-          # 3. 重新觸發本工作流 → 小工具/CarPlay 小工具即可讀到歌詞資料
+          # 免費 Apple ID 救援小工具用(repo Variable,可留空):
+          # 值 = Sideloadly 實際核發的 App Group(如 group.A1B2C3D4E5.com.lab.lyricflow)
           APP_GROUP: ${{ vars.LYRICFLOW_APP_GROUP }}
         run: |
           set -o pipefail
@@ -77,7 +77,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             LYRICFLOW_APP_GROUP="${APP_GROUP:-group.com.lab.lyricflow}" \
-            2>&1 | tail -n 80
+            > build.log 2>&1 || BUILD_FAILED=1
+
+          if [ "${BUILD_FAILED:-0}" = "1" ]; then
+            echo "================ ❌ 編譯錯誤摘要(去重)================"
+            grep -E "error: " build.log | sort -u | head -n 40 || echo "(未擷取到 error: 行)"
+            echo "================ log 結尾 60 行 ================"
+            tail -n 60 build.log
+            exit 1
+          fi
+          echo "================ ✅ 建置成功 ================"
+          tail -n 3 build.log
 
       - name: Package unsigned IPA
         run: |
@@ -110,3 +120,34 @@ jobs:
           path: LyricFlow-unsigned.ipa
           retention-days: 14
           if-no-files-found: error
+
+      # ============================================================
+      # 失敗時:把錯誤摘要自動發到 GitHub Issue(可匿名讀取 → 遠端除錯)
+      # ============================================================
+      - name: Report errors to GitHub issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ERROR_SUMMARY=$(grep -E "error: " build.log | sort -u | head -n 40 || echo "未擷取到 error: 行(可能失敗於更早的步驟)")
+          LOG_LINK="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          BODY=$(printf '%s\n\n%s\n%s\n%s\n\n%s %s' \
+            "建置失敗(commit $GITHUB_SHA)" \
+            '```' "$ERROR_SUMMARY" '```' "完整日誌:" "$LOG_LINK")
+          PAYLOAD=$(jq -n --arg b "$BODY" '{body: $b}')
+          TITLE="Build failure auto-report"
+          EXISTING=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues?state=open&per_page=30" \
+            | jq -r --arg t "$TITLE" '.[] | select(.title == $t) | .number' | head -n 1)
+          if [ -n "$EXISTING" ]; then
+            echo "在既有 issue #$EXISTING 追加留言"
+            curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues/$EXISTING/comments" \
+              -d "$PAYLOAD" > /dev/null
+          else
+            echo "建立新 issue"
+            ISSUE_PAYLOAD=$(jq -n --arg t "$TITLE" --arg b "$BODY" '{title: $t, body: $b}')
+            curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/issues" \
+              -d "$ISSUE_PAYLOAD" > /dev/null
+          fi
