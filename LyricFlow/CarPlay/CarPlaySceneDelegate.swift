@@ -16,7 +16,7 @@ import UIKit
 /// `CPTemplateApplicationSceneDelegate` 連線回呼有兩組變體
 /// (音訊類 App 走 `didConnect:` 無 window 版),兩組皆實作確保相容。
 @MainActor
-final class CarPlaySceneDelegate: NSObject, CPTemplateApplicationSceneDelegate {
+final class CarPlaySceneDelegate: NSObject, @preconcurrency CPTemplateApplicationSceneDelegate {
 
     private var interfaceController: CPInterfaceController?
     private var lyricsTemplate: CPListTemplate?

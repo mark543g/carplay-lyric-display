@@ -227,20 +227,11 @@ final class SpotifyService: NSObject, ObservableObject {
         return track
     }
 
-    private func fetchArtwork(for stateTrack: any SPTAppRemoteTrack, trackID: String?) {
-        guard let remote = appRemote, let trackID else { return }
-        // SDK 將 fetchImageForItem:withSize:callback: 匯入為 async;
-        // 參數標籤為 forItem:with:(編譯器指示)
-        Task { @MainActor [weak self] in
-            guard let image = try? await remote.imageAPI?.fetchImage(
-                      forItem: stateTrack,
-                      with: CGSize(width: 256, height: 256)),
-                  let data = image.pngData() else { return }
-            guard var current = self?.lastTrack, current.id == trackID else { return }
-            current.artworkPNG = data
-            self?.lastTrack = current
-            self?.onTrackChange?(current)
-        }
+    private func fetchArtwork(for _: any SPTAppRemoteTrack, trackID _: String?) {
+        // [v1 範圍決策] SDK 的 fetchImage Swift 橋接形式不穩定(async 版回傳 Void,
+        // 影像無法取得),為保證建置通過先停用 Spotify 封面下載 ——
+        // UI 會顯示漸層預設圖,不影響歌詞/翻譯/控制功能。
+        // TODO: 拿到 SDK 實際 Swift 介面後,以 callback 形式補回。
     }
     #endif
 }
