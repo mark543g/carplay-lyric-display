@@ -1,0 +1,70 @@
+# XcodeGen 專案定義 —— 在 Mac 上執行 `xcodegen generate` 產生 LyricFlow.xcodeproj
+# https://github.com/yonaskolb/XcodeGen
+name: LyricFlow
+
+options:
+  bundleIdPrefix: com.lab
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: "NO"
+    ENABLE_USER_SCRIPT_SANDBOXING: "YES"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    # App Group 預設值:免費 Apple ID + Sideloadly 簽章時,
+    # 由 CI 以建置參數覆寫(見 .github/workflows/build-ipa.yml 與 README)
+    LYRICFLOW_APP_GROUP: group.com.lab.lyricflow
+
+targets:
+  LyricFlow:
+    type: application
+    platform: iOS
+    sources:
+      - path: LyricFlow
+      - path: Shared
+      # Spotify App Remote SDK:放置 Vendor/SpotifyiOS.xcframework 即自動連結嵌入。
+      # CI 工作流會自動下載;本機不存在也照樣建置(Spotify 功能停用,canImport 保護)。
+      - path: Vendor
+        optional: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lab.lyricflow
+        PRODUCT_NAME: LyricFlow
+        INFOPLIST_FILE: LyricFlow/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LyricFlow/LyricFlow.entitlements
+    dependencies:
+      - target: LyricFlowWidgets
+
+  LyricFlowWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LyricFlowWidgets
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lab.lyricflow.widgets
+        PRODUCT_NAME: LyricFlowWidgets
+        INFOPLIST_FILE: LyricFlowWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LyricFlowWidgets/LyricFlowWidgets.entitlements
+        SKIP_INSTALL: "YES"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+
+schemes:
+  LyricFlow:
+    build:
+      targets:
+        LyricFlow: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 主 App 與 Widget 擴充功能共享資料 -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.lab.lyricflow</string>
+	</array>
+
+	<!-- CarPlay 音訊 App(傳統模板歌詞頁)。
+	     ⚠️ 需先在 developer.apple.com → Certificates, Identifiers & Profiles
+	     為 App ID 啟用 CarPlay (Audio) 功能,否則請先移除此 key。 -->
+	<key>com.apple.developer.playable-content</key>
+	<true/>
+
+	<!-- ShazamKit(識歌模式)。
+	     ⚠️ 需在 developer.apple.com 為 App ID 啟用 ShazamKit 功能,
+	     若 codesign 報錯,請移除此 key 並改由 Xcode Signing & Capabilities 加入。 -->
+	<key>com.apple.developer.shazamkit</key>
+	<true/>
+</dict>
+</plist>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh-Hant</string>
+	<key>CFBundleDisplayName</key>
+	<string>歌詞行</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- App Group identifier(免費 Apple ID + Sideloadly 簽章時,
+	     由建置參數 LYRICFLOW_APP_GROUP 覆寫成實際核發的 group ID) -->
+	<key>AppGroupIdentifier</key>
+	<string>$(LYRICFLOW_APP_GROUP)</string>
+
+	<!-- 即時活動(鎖定畫面 / 立動島 / CarPlay / Watch) -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+
+	<!-- Spotify App Remote 授權回跳 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.lab.lyricflow.spotify</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>lyricflow</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- CarPlay 傳統模板場景(非 Ultra 車款的歌詞頁) -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>CPTemplateApplicationScene</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+
+	<!-- 背景保活:播放中持續更新歌詞 / PiP 懸浮窗 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+
+	<key>UILaunchScreen</key>
+	<dict/>
+
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+
+	<!-- 識歌模式:麥克風 -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>識歌模式需要使用麥克風,辨識環境中正在播放的音樂。</string>
+
+	<!-- Apple Music / 媒體庫 -->
+	<key>NSAppleMusicUsageDescription</key>
+	<string>讀取 Apple Music 播放資訊,以即時同步歌詞與專輯封面。</string>
+</dict>
+</plist>

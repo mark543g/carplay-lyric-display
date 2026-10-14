@@ -1,0 +1,18 @@
+# Xcode
+*.xcodeproj
+!project.yml
+xcuserdata/
+DerivedData/
+build/
+*.xcworkspace
+
+# macOS
+.DS_Store
+
+# Signing
+*.mobileprovision
+*.p12
+*.cer
+
+# Spotify SDK(請自行下載,勿入版控)
+SpotifyiOS.xcframework/
