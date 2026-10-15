@@ -21,6 +21,8 @@ final class PlaybackCenter: ObservableObject {
 
     private var cancellables: Set<AnyCancellable> = []
     private var ticker: Timer?
+    /// 主動更新 widget 的最小間隔節流(見 refreshWidgetForCurrentLine)。
+    private var lastWidgetRefresh: Date = .distantPast
 
     // MARK: - UI 狀態
 
@@ -378,6 +380,19 @@ final class PlaybackCenter: ObservableObject {
         if force {
             updatePiPFrame()
         }
+        refreshWidgetForCurrentLine()
+    }
+
+    /// 每一行變動時主動更新 widget 快照並 reload。
+    ///
+    /// CarPlay / StandBy 的 widget 不會總按 timeline 自動推進,常要等重新顯示才換行;
+    /// 由執行中的 App 主動 reload 可強制它重繪(WWDC:App 執行中的 reload 不佔刷新預算)。
+    /// 仍做最小間隔節流,避免 seek 等連續事件過度觸發。
+    private func refreshWidgetForCurrentLine() {
+        let now = Date()
+        guard now.timeIntervalSince(lastWidgetRefresh) >= 1.5 else { return }
+        lastWidgetRefresh = now
+        writeSnapshot(reload: true)
     }
 
     private func handlePlaybackStateChange() {
