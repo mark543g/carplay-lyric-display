@@ -244,6 +244,19 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
+            LabeledContent("即時活動狀態") {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("授權:\(center.liveActivityAuthorized ? "允許" : "不允許")・活動:\(center.liveActivityActive ? "進行中" : "無")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let error = center.liveActivityLastError {
+                        Text(error)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+            }
         } header: {
             Text("關於")
         } footer: {

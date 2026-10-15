@@ -54,6 +54,12 @@ final class PlaybackCenter: ObservableObject {
         return lyrics.lines[index + 1].text
     }
 
+    // MARK: - 即時活動診斷(設定頁「關於」顯示,用於判斷為何活動沒出現)
+
+    var liveActivityAuthorized: Bool { liveActivity.authorizationEnabled }
+    var liveActivityActive: Bool { liveActivity.isActive }
+    var liveActivityLastError: String? { liveActivity.lastError }
+
     // MARK: - 啟動
 
     func start() {
