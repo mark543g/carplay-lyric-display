@@ -120,6 +120,17 @@ final class PlaybackCenter: ObservableObject {
                 self?.liveActivity.end()
             }
         }
+
+        // 設定頁重新開啟即時活動 → 立即為目前曲目建立活動(不用等換歌)
+        NotificationCenter.default.addObserver(
+            forName: .liveActivityRequestRestart,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let track = self.track else { return }
+                self.refreshLiveActivity(track: track)
+            }
+        }
     }
 
     // MARK: - 來源解析
@@ -382,6 +393,11 @@ final class PlaybackCenter: ObservableObject {
 
     private func handlePlaybackStateChange() {
         liveActivity.update(state: makeContentState())
+        // 已開啟即時活動但活動不存在(剛回前景 / 剛開設定 / 曾結束)→ 補建立,
+        // 確保 CarPlay 儀表板隨時都有一張逐行歌詞活動。
+        if settings.liveActivityEnabled, isPlaying, let track, !liveActivity.isActive {
+            liveActivity.startActivity(track: track, initial: makeContentState())
+        }
         writeSnapshot(reload: true)
         CarPlayLyricsBridge.shared.playbackStateChanged(isPlaying: isPlaying)
     }

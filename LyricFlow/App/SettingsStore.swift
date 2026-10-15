@@ -43,7 +43,9 @@ final class SettingsStore: ObservableObject {
     @Published var liveActivityEnabled: Bool {
         didSet {
             defaults.set(liveActivityEnabled, forKey: Keys.liveActivityEnabled)
-            if !liveActivityEnabled {
+            if liveActivityEnabled {
+                NotificationCenter.default.post(name: .liveActivityRequestRestart, object: nil)
+            } else {
                 NotificationCenter.default.post(name: .liveActivityForceEnd, object: nil)
             }
         }
@@ -139,4 +141,6 @@ final class SettingsStore: ObservableObject {
 extension Notification.Name {
     /// 使用者關閉即時活動 → PlaybackCenter 立刻結束現有活動。
     static let liveActivityForceEnd = Notification.Name("liveActivityForceEnd")
+    /// 使用者重新開啟即時活動 → PlaybackCenter 立即為目前曲目建立活動(不必等換歌)。
+    static let liveActivityRequestRestart = Notification.Name("liveActivityRequestRestart")
 }
