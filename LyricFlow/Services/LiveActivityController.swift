@@ -2,6 +2,10 @@ import Foundation
 import ActivityKit
 
 /// Live Activity 控制器(鎖定畫面 / 立動島 / CarPlay 儀表板 / Apple Watch Smart Stack)。
+///
+/// [關鍵] 活動「只能在 App 前景建立」。因此本控制器採「前景建立一次、之後只 update」:
+/// 曲目與歌詞都放在 ContentState(動態),換歌/換行都用 `update()`(背景亦可),
+/// 不再每首歌重新 `request()`(背景 request 會失敗,導致 CarPlay 上永不出現)。
 @MainActor
 final class LiveActivityController {
 
@@ -10,45 +14,46 @@ final class LiveActivityController {
     /// 最近一次啟動活動的失敗原因(供設定頁診斷顯示;成功時清空)。
     private(set) var lastError: String?
 
-    var isActive: Bool {
-        activity != nil
-    }
+    var isActive: Bool { activity != nil }
 
     /// 系統是否允許即時活動(iPhone「設定 → 歌詞行 → 即時活動」)。
     var authorizationEnabled: Bool {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
-    /// 換歌時呼叫:結束舊活動、建立新活動。回傳是否成功建立。
+    /// 前景時呼叫:尚無活動則建立;已有活動則更新內容。回傳是否已有(或成功建立)活動。
     @discardableResult
-    func startActivity(track: Track, initial state: LyricsActivityAttributes.ContentState) -> Bool {
-        end()
-
+    func ensureActive(state: LyricsActivityAttributes.ContentState) -> Bool {
+        if let activity {
+            push(activity, state: state)
+            return true
+        }
         guard authorizationEnabled else {
             lastError = "系統未允許即時活動(設定 → 歌詞行 → 即時活動)"
             return false
         }
-
-        let attributes = LyricsActivityAttributes(
-            trackTitle: track.title,
-            artist: track.artist,
-            sourceName: track.source.displayName
-        )
-        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
         do {
-            activity = try Activity.request(attributes: attributes, content: content)
+            let created = try Activity.request(
+                attributes: LyricsActivityAttributes(),
+                content: ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
+            )
+            activity = created
             lastError = nil
             return true
         } catch {
-            activity = nil
             lastError = "\(error)"
             return false
         }
     }
 
-    /// 歌詞行推進 / 播放狀態改變時呼叫。
+    /// 內容更新(換歌或換行時呼叫;可在背景執行)。
     func update(state: LyricsActivityAttributes.ContentState) {
         guard let activity else { return }
+        push(activity, state: state)
+    }
+
+    private func push(_ activity: Activity<LyricsActivityAttributes>,
+                      state: LyricsActivityAttributes.ContentState) {
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
         Task {
             await activity.update(content)

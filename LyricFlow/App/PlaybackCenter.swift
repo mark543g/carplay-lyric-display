@@ -245,7 +245,7 @@ final class PlaybackCenter: ObservableObject {
         // 立即反映到各顯示面
         let initialState = makeContentState()
         if settings.liveActivityEnabled {
-            liveActivity.startActivity(track: newTrack, initial: initialState)
+            liveActivity.ensureActive(state: initialState)
         } else {
             liveActivity.end()
         }
@@ -394,6 +394,9 @@ final class PlaybackCenter: ObservableObject {
 
     private func makeContentState() -> LyricsActivityAttributes.ContentState {
         LyricsActivityAttributes.ContentState(
+            trackTitle: track?.title ?? "LyricFlow",
+            artist: track?.artist ?? "",
+            sourceName: track?.source.displayName ?? activeSource?.displayName ?? "",
             line: currentLine?.text ?? "♪",
             translation: currentLineTranslation,
             nextLine: nextLineText,
@@ -451,7 +454,14 @@ final class PlaybackCenter: ObservableObject {
             liveActivity.end()
             return
         }
-        liveActivity.startActivity(track: track, initial: makeContentState())
+        liveActivity.ensureActive(state: makeContentState())
+    }
+
+    /// 回前景時呼叫:確保即時活動存在(活動只能在 App 前景建立,
+    /// 背景偵測到的換歌只會 update;若活動曾被結束,需在前景補建立)。
+    func ensureLiveActivity() {
+        guard settings.liveActivityEnabled, track != nil else { return }
+        liveActivity.ensureActive(state: makeContentState())
     }
 
     /// 手動模式下跳轉位置(點擊歌詞行)。

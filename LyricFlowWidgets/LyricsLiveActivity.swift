@@ -24,11 +24,11 @@ struct LyricsLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: 1) {
-                        Text(context.attributes.trackTitle)
+                        Text(context.state.trackTitle)
                             .font(.caption2.bold())
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
-                        Text(context.attributes.artist)
+                        Text(context.state.artist)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -93,12 +93,12 @@ struct LyricsActivityLockScreenView: View {
             HStack(spacing: 8) {
                 Image(systemName: "music.note")
                     .foregroundStyle(.pink)
-                Text("\(context.attributes.trackTitle) — \(context.attributes.artist)")
+                Text("\(context.state.trackTitle) — \(context.state.artist)")
                     .font(.caption.bold())
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 Spacer()
-                Text(context.attributes.sourceName)
+                Text(context.state.sourceName)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Image(systemName: context.state.isPlaying ? "waveform" : "pause.fill")
@@ -139,7 +139,7 @@ struct LyricsActivityLockScreenView: View {
                 Image(systemName: "music.note")
                     .font(.caption2)
                     .foregroundStyle(.pink)
-                Text(context.attributes.trackTitle)
+                Text(context.state.trackTitle)
                     .font(.caption2.bold())
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
