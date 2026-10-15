@@ -61,10 +61,10 @@ struct NowPlayingView: View {
 
     private var artworkSection: some View {
         VStack(spacing: 12) {
-            ArtworkView(artworkPNG: center.track?.artworkPNG, cornerRadius: 24)
+            ArtworkView(artworkPNG: center.track?.artworkPNG, cornerRadius: 16)
                 .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: 320)
-                .shadow(color: .black.opacity(0.35), radius: 18, y: 10)
+                .frame(maxWidth: 140)
+                .shadow(color: .black.opacity(0.35), radius: 12, y: 6)
 
             VStack(spacing: 4) {
                 Text(center.track?.title ?? "未偵測到播放中的音樂")
@@ -107,23 +107,37 @@ struct NowPlayingView: View {
                     .font(.callout)
                     .foregroundStyle(.red)
             default:
-                BilingualLineView(
-                    text: center.currentLine?.text ?? "♪",
-                    translation: center.currentLineTranslation,
-                    isActive: true
-                )
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 4)
+                multiLineLyrics
+            }
+        }
+        .frame(minHeight: 150, alignment: .top)
+    }
 
-                if let next = center.nextLineText {
-                    Text(next)
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+    /// 主畫面歌詞:當前行放大顯示 + 後續數行,多行呈現。
+    private var multiLineLyrics: some View {
+        let lines = center.lyrics?.lines ?? []
+        let translations = center.lyrics?.translations ?? [:]
+        let start = center.currentLineIndex ?? 0
+
+        return VStack(alignment: .leading, spacing: 2) {
+            if lines.isEmpty {
+                BilingualLineView(text: "♪", translation: nil, isActive: true, fontScale: 1.35)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(0..<4, id: \.self) { offset in
+                    let index = start + offset
+                    if index >= 0, index < lines.count {
+                        BilingualLineView(
+                            text: lines[index].text,
+                            translation: translations[index],
+                            isActive: offset == 0,
+                            fontScale: offset == 0 ? 1.35 : 1.05
+                        )
+                    }
                 }
             }
         }
-        .frame(minHeight: 110)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - 進度

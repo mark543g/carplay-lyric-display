@@ -20,6 +20,7 @@ final class SettingsStore: ObservableObject {
         static let showTranslation = "showTranslation"
         static let overlayEnabled = "overlayEnabled"
         static let overlayPosition = "overlayPosition"
+        static let fullScreenFontScale = "fullScreenFontScale"
         static let spotifyConnectedOnce = "spotifyConnectedOnce"
     }
 
@@ -70,6 +71,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(overlayEnabled, forKey: Keys.overlayEnabled) }
     }
 
+    /// 全螢幕歌詞字體縮放(0.8 ~ 2.0,預設 1.0)。
+    @Published var fullScreenFontScale: Double {
+        didSet { defaults.set(fullScreenFontScale, forKey: Keys.fullScreenFontScale) }
+    }
+
     /// 懸浮窗位置(normalized x/y,0~1)。
     @Published var overlayPosition: CGPoint {
         didSet {
@@ -106,6 +112,7 @@ final class SettingsStore: ObservableObject {
         keepAliveEnabled = defaults.object(forKey: Keys.keepAliveEnabled) as? Bool ?? true
         showTranslation = defaults.object(forKey: Keys.showTranslation) as? Bool ?? true
         overlayEnabled = defaults.object(forKey: Keys.overlayEnabled) as? Bool ?? false
+        fullScreenFontScale = defaults.object(forKey: Keys.fullScreenFontScale) as? Double ?? 1.0
 
         if let raw = defaults.string(forKey: Keys.overlayPosition),
            let x = Double(raw.components(separatedBy: ",").first ?? ""),

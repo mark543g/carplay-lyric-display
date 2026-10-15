@@ -87,15 +87,17 @@ struct BilingualLineView: View {
     let text: String
     let translation: String?
     let isActive: Bool
+    /// 字體縮放(全螢幕可調、主畫面放大顯示)。
+    var fontScale: CGFloat = 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(text)
-                .font(.system(size: 22, weight: isActive ? .bold : .medium))
+                .font(.system(size: 22 * fontScale, weight: isActive ? .bold : .medium))
                 .foregroundStyle(isActive ? .primary : .secondary)
             if let translation, !translation.isEmpty {
                 Text(translation)
-                    .font(.system(size: 15, weight: isActive ? .semibold : .regular))
+                    .font(.system(size: 15 * fontScale, weight: isActive ? .semibold : .regular))
                     // Color.primary/.secondary 為 Color 成員,可安全 .opacity(避免 ShapeStyle 不透明型別在三元運算中無法統一)
                     .foregroundStyle(isActive ? Color.primary.opacity(0.85) : Color.secondary.opacity(0.7))
             }

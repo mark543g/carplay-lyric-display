@@ -51,7 +51,7 @@ struct FullScreenLyricsView: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            HStack {
+            HStack(spacing: 8) {
                 Button {
                     isPresented = false
                 } label: {
@@ -61,6 +61,7 @@ struct FullScreenLyricsView: View {
                         .background(.ultraThinMaterial, in: Circle())
                 }
                 Spacer()
+                fontScaleControls
                 Toggle("自動捲動", isOn: $autoScroll)
                     .toggleStyle(.button)
                     .font(.caption)
@@ -104,6 +105,35 @@ struct FullScreenLyricsView: View {
         }
     }
 
+    // MARK: - 字體大小控制
+
+    private var fontScaleControls: some View {
+        HStack(spacing: 4) {
+            Button { adjustFont(-0.1) } label: {
+                Image(systemName: "textformat.size.smaller")
+                    .font(.caption)
+            }
+            .disabled(settings.fullScreenFontScale <= 0.8)
+
+            Text("\(Int((settings.fullScreenFontScale * 100).rounded()))%")
+                .font(.caption2.monospacedDigit())
+                .frame(minWidth: 40)
+
+            Button { adjustFont(0.1) } label: {
+                Image(systemName: "textformat.size.larger")
+                    .font(.caption)
+            }
+            .disabled(settings.fullScreenFontScale >= 2.0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    private func adjustFont(_ delta: Double) {
+        settings.fullScreenFontScale = min(max(settings.fullScreenFontScale + delta, 0.8), 2.0)
+    }
+
     // MARK: - 頂部曲目資訊
 
     private var header: some View {
@@ -140,7 +170,8 @@ struct FullScreenLyricsView: View {
                         BilingualLineView(
                             text: line.text,
                             translation: lyrics.translations[line.index],
-                            isActive: isActive
+                            isActive: isActive,
+                            fontScale: CGFloat(settings.fullScreenFontScale)
                         )
                     }
                     .buttonStyle(.plain)
