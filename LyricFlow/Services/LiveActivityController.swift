@@ -28,6 +28,12 @@ final class LiveActivityController {
             push(activity, state: state)
             return true
         }
+        // App 重啟後,系統可能仍有本 App 的活動 → 接回來用,不要重複建立。
+        if let existing = Activity<LyricsActivityAttributes>.activities.first {
+            activity = existing
+            push(existing, state: state)
+            return true
+        }
         guard authorizationEnabled else {
             lastError = "系統未允許即時活動(設定 → 歌詞行 → 即時活動)"
             return false
