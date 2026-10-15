@@ -46,8 +46,7 @@ final class LyricsSearchService {
                 let musixmatch = MusixmatchProvider(apiKey: key)
                 if let document = try? await musixmatch.findLyrics(for: track) {
                     if Task.isCancelled { return nil }
-                    self.memoryCache[track.id] = document
-                    return document
+                    return self.store(document, for: track)
                 }
             }
 
@@ -55,16 +54,14 @@ final class LyricsSearchService {
             let netease = NetEaseProvider()
             if let document = try? await netease.findLyrics(for: track) {
                 if Task.isCancelled { return nil }
-                self.memoryCache[track.id] = document
-                return document
+                return self.store(document, for: track)
             }
 
             // 3) LRCLIB(免金鑰,開源歌詞庫)
             let lrclib = LRCLIBProvider()
             if let document = try? await lrclib.findLyrics(for: track) {
                 if Task.isCancelled { return nil }
-                self.memoryCache[track.id] = document
-                return document
+                return self.store(document, for: track)
             }
 
             // 4) 以清潔後的標題重試一次(去除「(Official Video)」等雜訊;網易雲 → LRCLIB)
@@ -72,13 +69,11 @@ final class LyricsSearchService {
             if cleanedTrack.id != track.id {
                 if let document = try? await netease.findLyrics(for: cleanedTrack) {
                     if Task.isCancelled { return nil }
-                    self.memoryCache[track.id] = document
-                    return document
+                    return self.store(document, for: track)
                 }
                 if let document = try? await lrclib.findLyrics(for: cleanedTrack) {
                     if Task.isCancelled { return nil }
-                    self.memoryCache[track.id] = document
-                    return document
+                    return self.store(document, for: track)
                 }
             }
 
@@ -88,6 +83,13 @@ final class LyricsSearchService {
         let result = await task.value
         searchTask = nil
         return result
+    }
+
+    /// 統一收尾:簡體中文轉繁體後寫入記憶體快取,並回傳轉換後的文件。
+    private func store(_ document: LyricsDocument, for track: Track) -> LyricsDocument {
+        let converted = ChineseScriptConverter.convert(document)
+        memoryCache[track.id] = converted
+        return converted
     }
 
     /// 清除標題中的常見雜訊,提升歌詞庫比對成功率。

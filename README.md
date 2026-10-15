@@ -51,7 +51,7 @@ open LyricFlow.xcodeproj
 ### 流程
 
 ```
-推送程式碼到 GitHub → Actions 自動建置 → 下載 LyricFlow-unsigned-ipa
+推送程式碼到 GitHub → Actions 自動建置 → 下載 LyricFlow-<版本>-<建置號>-unsigned-ipa
         → Windows 用 Sideloadly 以「你的 Apple ID」重簽 → USB 安裝到 iPhone
 ```
 
@@ -59,7 +59,9 @@ open LyricFlow.xcodeproj
    (公有 repo 的 macOS runner 免費無限時;私有 repo 每月 2000 分鐘額度,macOS 以 10× 計費,約可建 6~8 次)
 2. 推送後到 **Actions** 分頁,等 `Build Unsigned IPA` 跑完
    (工作流會自動下載 SpotifyiOS SDK、執行 xcodegen、Release 編譯、打包 IPA)
-3. 點進該次執行 → **Artifacts** 區域下載 `LyricFlow-unsigned-ipa`(內含 `LyricFlow-unsigned.ipa`)
+3. 點進該次執行 → **Artifacts** 區域下載 `LyricFlow-<版本>-<建置號>-unsigned-ipa`
+   (內含 `LyricFlow-<版本>-<建置號>-unsigned.ipa`,例如版本 1.0、第 42 次建置即
+   `LyricFlow-1.0-42-unsigned.ipa`;版號同樣顯示在 App「設定 → 關於」)
 4. Windows 安裝 [Sideloadly](https://sideloadly.io)(需搭配 iTunes 或 Apple Devices 應用程式提供 USB 驅動)
    → 拖入 IPA → 登入 Apple ID → Install
 5. 手機上「設定 → 一般 → VPN與裝置管理」信任你的開發者憑證後即可開啟

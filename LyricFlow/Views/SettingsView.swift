@@ -27,6 +27,7 @@ struct SettingsView: View {
                 spotifySection
                 displaySection
                 carPlaySection
+                aboutSection
             }
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
@@ -231,5 +232,39 @@ struct SettingsView: View {
         } header: {
             Text("CarPlay")
         }
+    }
+
+    // MARK: - 關於
+
+    private var aboutSection: some View {
+        Section {
+            LabeledContent("版本") {
+                Text(Self.appVersionText)
+                    .font(.callout.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        } header: {
+            Text("關於")
+        } footer: {
+            Text("歌詞行 LyricFlow")
+        }
+    }
+
+    /// 版本顯示字串:行銷版本 (建置號) · commit · 建置日期,取自 Info.plist。
+    /// 本機建置未注入 commit/日期時自動省略後兩段。
+    private static var appVersionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        var parts = ["\(version) (\(build))"]
+
+        if let sha = info?["GitCommitSHA"] as? String, !sha.isEmpty {
+            parts.append(sha)
+        }
+        if let date = info?["BuildDate"] as? String, !date.isEmpty {
+            parts.append(date)
+        }
+        return parts.joined(separator: " · ")
     }
 }

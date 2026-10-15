@@ -1,6 +1,6 @@
 # 無 Mac 建置管線:在 GitHub 雲端 macOS runner 上編譯並打包「未簽章 IPA」。
 #
-# 流程:推送程式碼(或手動觸發)→ 自動產出 LyricFlow-unsigned.ipa
+# 流程:推送程式碼(或手動觸發)→ 自動產出 LyricFlow-<版本>-<建置號>-unsigned.ipa
 #      → 到 Actions 頁面下載 → 用 Windows 的 Sideloadly 以你的 Apple ID 重簽安裝。
 #
 # 失敗自動除錯迴環:建置失敗時,本工作流會:
@@ -65,8 +65,14 @@ jobs:
           # 免費 Apple ID 救援小工具用(repo Variable,可留空):
           # 值 = Sideloadly 實際核發的 App Group(如 group.A1B2C3D4E5.com.lab.lyricflow)
           APP_GROUP: ${{ vars.LYRICFLOW_APP_GROUP }}
+          # 版本資訊:建置號 = Actions 執行序號(單調遞增);另注入 commit 短碼與建置日期
+          BUILD_NUMBER: ${{ github.run_number }}
+          GIT_SHA: ${{ github.sha }}
         run: |
           set -o pipefail
+          SHORT_SHA="${GIT_SHA:0:7}"
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          echo "版本:$(grep -m1 'MARKETING_VERSION' project.yml) / build ${BUILD_NUMBER} / ${SHORT_SHA} / ${BUILD_DATE}"
           xcodebuild build \
             -project LyricFlow.xcodeproj \
             -scheme LyricFlow \
@@ -76,6 +82,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
+            LYRICFLOW_GIT_SHA="${SHORT_SHA}" \
+            LYRICFLOW_BUILD_DATE="${BUILD_DATE}" \
             LYRICFLOW_APP_GROUP="${APP_GROUP:-group.com.lab.lyricflow}" \
             > build.log 2>&1 || BUILD_FAILED=1
 
@@ -105,21 +114,31 @@ jobs:
           else
             echo "::warning::Widget 擴充功能未嵌入,小工具/即時活動可能無法運作"
           fi
+          # 版本號取自實際建置產物(CI 已把 run_number 注入建置號)
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist")
+          IPA_NAME="LyricFlow-${VERSION}-${BUILD}-unsigned.ipa"
+          echo "版本:${VERSION} (${BUILD}) → ${IPA_NAME}"
+          # 供後續 step 與 artifact 命名使用
+          {
+            echo "IPA_NAME=${IPA_NAME}"
+            echo "ARTIFACT_NAME=LyricFlow-${VERSION}-${BUILD}-unsigned-ipa"
+          } >> "$GITHUB_ENV"
           rm -rf Payload
           mkdir Payload
           cp -R "$APP" Payload/
-          rm -f LyricFlow-unsigned.ipa
+          rm -f "$IPA_NAME"
           # -y:保留符號連結(framework 內部結構需要)
-          zip -qry LyricFlow-unsigned.ipa Payload
+          zip -qry "$IPA_NAME" Payload
           echo "IPA 內容:"
-          unzip -l LyricFlow-unsigned.ipa | head -n 15
-          ls -lh LyricFlow-unsigned.ipa
+          unzip -l "$IPA_NAME" | head -n 15
+          ls -lh "$IPA_NAME"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LyricFlow-unsigned-ipa
-          path: LyricFlow-unsigned.ipa
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.IPA_NAME }}
           retention-days: 14
           if-no-files-found: error
 
@@ -140,7 +159,7 @@ jobs:
             echo "=== 主程式 binary 連結相依(otool -L)==="
             otool -L "$APP/LyricFlow" 2>/dev/null | head -n 25
             echo "=== IPA 檔案清單(前 30 行)==="
-            unzip -l LyricFlow-unsigned.ipa | head -n 30
+            unzip -l "$IPA_NAME" | head -n 30
             echo "=== Widget extension 是否嵌入 ==="
             ls "$APP/PlugIns" 2>/dev/null || echo "(無 PlugIns)"
           } > anatomy.txt

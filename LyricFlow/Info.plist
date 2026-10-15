@@ -20,6 +20,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+
+	<!-- 版本顯示用(由 CI 注入 build settings;本機留空) -->
+	<key>GitCommitSHA</key>
+	<string>$(LYRICFLOW_GIT_SHA)</string>
+	<key>BuildDate</key>
+	<string>$(LYRICFLOW_BUILD_DATE)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
