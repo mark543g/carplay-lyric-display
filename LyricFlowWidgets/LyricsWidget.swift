@@ -137,6 +137,10 @@ struct LyricsWidget: Widget {
             .accessoryRectangular,
             .accessoryCircular,
         ])
+        // CarPlay / StandBy 的小工具庫只收「背景可移除」的 widget。
+        // 只靠 .containerBackground 是隱含可移除,系統可能不列入清單;
+        // 明確宣告後才會出現在 StandBy 與 CarPlay。
+        .containerBackgroundRemovable(true)
     }
 }
 
