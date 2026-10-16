@@ -49,7 +49,7 @@ final class KeepAliveAudioPlayer {
             let data = Self.silentWAVData(seconds: 2)
             let silentPlayer = try AVAudioPlayer(data: data)
             silentPlayer.numberOfLoops = -1
-            silentPlayer.volume = 1.0   // 音量交給檔案本身的極低振幅(見 silentWAVData)
+            silentPlayer.volume = 0.02
             silentPlayer.prepareToPlay()
             silentPlayer.play()
             player = silentPlayer
@@ -130,15 +130,7 @@ final class KeepAliveAudioPlayer {
         appendUInt16(16)                    // bits per sample
         append("data")
         appendUInt32(UInt32(dataSize))
-
-        // 低振幅正弦(約 0.9% 振幅、30Hz)→ 幾乎不可聞但為真實音訊
-        let frequency = 30.0
-        let amplitude = 300.0
-        for sample in 0..<totalSamples {
-            let value = Int16(amplitude * sin(2.0 * Double.pi * frequency * Double(sample) / Double(sampleRate)))
-            var little = value.littleEndian
-            data.append(Data(bytes: &little, count: 2))
-        }
+        data.append(Data(count: dataSize)) // 靜音(全 0)
 
         return data
     }
