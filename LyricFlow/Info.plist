@@ -40,6 +40,10 @@
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 
+	<!-- 允許頻繁更新即時活動(Apple 官方鍵,iOS 16.2+) -->
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
+
 	<!-- Spotify App Remote 授權回跳 -->
 	<key>CFBundleURLTypes</key>
 	<array>

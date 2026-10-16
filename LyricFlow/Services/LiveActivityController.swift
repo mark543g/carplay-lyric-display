@@ -42,9 +42,11 @@ final class LiveActivityController {
             return false
         }
         do {
+            // staleDate nil = 永不過期:歌詞靠逐行推播更新;120 秒的過期日
+            // 會在長間奏(>2 分鐘無換行)時把正常內容標成「過時」。
             let created = try Activity.request(
                 attributes: LyricsActivityAttributes(),
-                content: ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
+                content: ActivityContent(state: state, staleDate: nil)
             )
             activity = created
             lastError = nil
@@ -64,7 +66,7 @@ final class LiveActivityController {
     private func push(_ activity: Activity<LyricsActivityAttributes>,
                       state: LyricsActivityAttributes.ContentState) {
         updateCount += 1
-        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
+        let content = ActivityContent(state: state, staleDate: nil) // 永不過期(同上)
         Task {
             await activity.update(content)
         }

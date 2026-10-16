@@ -198,6 +198,14 @@ final class PlaybackCenter: ObservableObject {
             if let album = candidate.track?.album, track.album == nil {
                 self.track?.album = album
             }
+            // ISRC 由 MusicKit 非同步補上(enrichISRC)→ 回灌到目前曲目;
+            // 若歌詞尚未找到/仍在載入,帶 ISRC 重查一次(Musixmatch 用 track_isrc 精準比對)。
+            if let isrc = candidate.track?.isrc, self.track?.isrc == nil {
+                self.track?.isrc = isrc
+                if lyrics == nil {
+                    beginNewSong(self.track!)
+                }
+            }
         } else if candidate.track == nil, track != nil {
             // 來源清空
             applyCandidate(candidate)

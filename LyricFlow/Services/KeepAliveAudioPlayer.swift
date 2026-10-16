@@ -34,6 +34,12 @@ final class KeepAliveAudioPlayer {
         player?.stop()
         player = nil
         isRunning = false
+        // 必須一併移除中斷/媒體重置監聽:否則使用者關閉保活後,
+        // 來電結束或媒體重置仍會經 restart() 偷偷喚醒無聲播放。
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        observers.removeAll()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
@@ -68,6 +74,7 @@ final class KeepAliveAudioPlayer {
     }
 
     private func restart() {
+        guard isRunning else { return } // 已被使用者關閉 → 不得自行復活
         player?.stop()
         player = nil
         isRunning = false
