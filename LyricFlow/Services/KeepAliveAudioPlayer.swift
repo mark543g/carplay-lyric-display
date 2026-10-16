@@ -49,7 +49,7 @@ final class KeepAliveAudioPlayer {
             let data = Self.silentWAVData(seconds: 2)
             let silentPlayer = try AVAudioPlayer(data: data)
             silentPlayer.numberOfLoops = -1
-            silentPlayer.volume = 0.01
+            silentPlayer.volume = 1.0   // 音量交給檔案本身的極低振幅(見 silentWAVData)
             silentPlayer.prepareToPlay()
             silentPlayer.play()
             player = silentPlayer
@@ -94,7 +94,11 @@ final class KeepAliveAudioPlayer {
         })
     }
 
-    /// 產生 n 秒的 16-bit 單聲道無聲 WAV(全為靜音資料)。
+    /// 產生 n 秒的 16-bit 單聲道**極低振幅音訊**並轉為 WAV。
+    ///
+    /// 刻意不用「純數位靜音(全 0)」:iOS 有時會判定沒有實際音訊輸出而暫停 App,
+    /// 導致背景不再更新。改用約 0.9% 振幅、30Hz 的正弦(人耳幾乎不可聞),
+    /// 讓系統認定「確實在播放音訊」→ App 背景持續執行 → 即時活動能持續更新。
     static func silentWAVData(seconds: Double) -> Data {
         let sampleRate = 22050
         let totalSamples = Int(Double(sampleRate) * seconds)
@@ -126,7 +130,15 @@ final class KeepAliveAudioPlayer {
         appendUInt16(16)                    // bits per sample
         append("data")
         appendUInt32(UInt32(dataSize))
-        data.append(Data(count: dataSize)) // 靜音(全 0)
+
+        // 低振幅正弦(約 0.9% 振幅、30Hz)→ 幾乎不可聞但為真實音訊
+        let frequency = 30.0
+        let amplitude = 300.0
+        for sample in 0..<totalSamples {
+            let value = Int16(amplitude * sin(2.0 * Double.pi * frequency * Double(sample) / Double(sampleRate)))
+            var little = value.littleEndian
+            data.append(Data(bytes: &little, count: 2))
+        }
 
         return data
     }

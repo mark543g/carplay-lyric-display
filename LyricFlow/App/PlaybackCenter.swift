@@ -59,6 +59,7 @@ final class PlaybackCenter: ObservableObject {
     var liveActivityAuthorized: Bool { liveActivity.authorizationEnabled }
     var liveActivityActive: Bool { liveActivity.isActive }
     var liveActivityLastError: String? { liveActivity.lastError }
+    var liveActivityUpdateCount: Int { liveActivity.updateCount }
 
     // MARK: - 啟動
 

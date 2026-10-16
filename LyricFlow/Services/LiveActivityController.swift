@@ -14,6 +14,9 @@ final class LiveActivityController {
     /// 最近一次啟動活動的失敗原因(供設定頁診斷顯示;成功時清空)。
     private(set) var lastError: String?
 
+    /// 已送出幾次活動更新(診斷用:鎖定後數字若不增加 = App 沒在更新)。
+    private(set) var updateCount = 0
+
     var isActive: Bool { activity != nil }
 
     /// 系統是否允許即時活動(iPhone「設定 → 歌詞行 → 即時活動」)。
@@ -60,6 +63,7 @@ final class LiveActivityController {
 
     private func push(_ activity: Activity<LyricsActivityAttributes>,
                       state: LyricsActivityAttributes.ContentState) {
+        updateCount += 1
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
         Task {
             await activity.update(content)
