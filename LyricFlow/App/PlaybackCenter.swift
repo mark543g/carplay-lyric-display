@@ -60,6 +60,7 @@ final class PlaybackCenter: ObservableObject {
     var liveActivityActive: Bool { liveActivity.isActive }
     var liveActivityLastError: String? { liveActivity.lastError }
     var liveActivityUpdateCount: Int { liveActivity.updateCount }
+    var liveActivityBackgroundUpdateCount: Int { liveActivity.backgroundUpdateCount }
 
     // MARK: - 啟動
 
