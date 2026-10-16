@@ -1,5 +1,6 @@
 import Foundation
 import ActivityKit
+import UIKit
 
 /// Live Activity 控制器(鎖定畫面 / 立動島 / CarPlay 儀表板 / Apple Watch Smart Stack)。
 ///
@@ -32,15 +33,23 @@ final class LiveActivityController {
             return true
         }
         // App 重啟後,系統可能仍有本 App 的活動 → 接回來用,不要重複建立。
-        if let existing = Activity<LyricsActivityAttributes>.activities.first {
-            activity = existing
-            push(existing, state: state)
-            return true
+        // [修正] 只接回仍在顯示中的活動(.active/.stale);已結束/已關閉的殘留活動
+        // 一律終結後重建。若誤接死卡:isActive 恆為 true、更新全送進虛空,
+        // 鎖定畫面永遠不出現,而且沒有任何錯誤訊息可看。
+        for existing in Activity<LyricsActivityAttributes>.activities {
+            switch existing.activityState {
+            case .active, .stale:
+                activity = existing
+                push(existing, state: state)
+                return true
+            default:
+                let zombie = existing
+                Task { await zombie.end(dismissalPolicy: .immediate) }
+            }
         }
-        guard authorizationEnabled else {
-            lastError = "系統未允許即時活動(設定 → 歌詞行 → 即時活動)"
-            return false
-        }
+        // [修正] 不再用 areActivitiesEnabled 預先拒絕:反覆安裝/重簽後,
+        // iOS 的 per-app 即時活動狀態可能過期失真。一律直接嘗試建立;
+        // 若系統真的不允許,由 request() 拋出真正的原因(顯示於 設定 → 關於)。
         do {
             // staleDate nil = 永不過期:歌詞靠逐行推播更新;120 秒的過期日
             // 會在長間奏(>2 分鐘無換行)時把正常內容標成「過時」。
@@ -59,8 +68,15 @@ final class LiveActivityController {
 
     /// 內容更新(換歌或換行時呼叫;可在背景執行)。
     func update(state: LyricsActivityAttributes.ContentState) {
-        guard let activity else { return }
-        push(activity, state: state)
+        if let activity {
+            push(activity, state: state)
+            return
+        }
+        // [修正] 前景時自我補建:活動若已被系統回收或先前建立失敗,
+        // 下一次換行就重試建立,不必等換歌或回前景。
+        // 背景無法 request(系統限制),維持靜默略過。
+        guard UIApplication.shared.applicationState == .active else { return }
+        ensureActive(state: state)
     }
 
     private func push(_ activity: Activity<LyricsActivityAttributes>,

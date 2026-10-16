@@ -396,7 +396,11 @@ final class PlaybackCenter: ObservableObject {
     }
 
     private func handlePlaybackStateChange() {
-        liveActivity.update(state: makeContentState())
+        // [修正] 與 pushLineUpdates 一致加上開關判斷:
+        // update() 現在會在前景自我補建活動,不能在關閉即時活動時繞過設定。
+        if settings.liveActivityEnabled {
+            liveActivity.update(state: makeContentState())
+        }
         writeSnapshot(reload: true)
         CarPlayLyricsBridge.shared.playbackStateChanged(isPlaying: isPlaying)
     }
