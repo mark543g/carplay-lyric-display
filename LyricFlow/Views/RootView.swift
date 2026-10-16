@@ -16,6 +16,29 @@ struct RootView: View {
                 .tabItem { Label("設定", systemImage: "gearshape.fill") }
         }
         .overlay(alignment: .top) {
+            // [診斷] 系統未允許即時活動 → 鎖定畫面 / CarPlay 不會出現歌詞卡。
+            // 直接在主畫面醒目提示,並可點擊跳到本 App 的設定頁。
+            if settings.liveActivityEnabled, !center.liveActivityAuthorized {
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Text("⚠️ 系統未允許即時活動:鎖定畫面 / CarPlay 不會顯示歌詞卡。點此開啟「設定 → 歌詞行」把「即時活動」打開。")
+                        .font(.caption.bold())
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.white)
+                        .padding(10)
+                        .frame(maxWidth: 340)
+                        .background(Color.red.gradient, in: RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .overlay(alignment: .top) {
             if settings.overlayEnabled {
                 FloatingLyricsOverlay()
             }

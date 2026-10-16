@@ -65,8 +65,16 @@ final class LiveActivityController {
 
     /// 內容更新(換歌或換行時呼叫;可在背景執行)。
     func update(state: LyricsActivityAttributes.ContentState) {
-        guard let activity else { return }
-        push(activity, state: state)
+        if let activity {
+            push(activity, state: state)
+            return
+        }
+        // [自我修復] 活動若已被系統回收(iOS 偶發,或 App 曾被重啟),
+        // 在前景時立即補建,避免「歌詞卡從此消失直到下一首歌」。
+        // 背景無法 request()(系統限制),維持原本靜默略過,回前景時會由
+        // ensureLiveActivity / 此處補建。
+        guard UIApplication.shared.applicationState == .active else { return }
+        ensureActive(state: state)
     }
 
     private func push(_ activity: Activity<LyricsActivityAttributes>,

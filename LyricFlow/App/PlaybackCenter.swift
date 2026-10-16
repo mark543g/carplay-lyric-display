@@ -112,14 +112,11 @@ final class PlaybackCenter: ObservableObject {
             }
         }
 
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.willTerminateNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.liveActivity.end()
-            }
-        }
+        // [修正] 不在 App 終止時結束活動:
+        // Apple 設計即時活動本來就能在 App 被系統回收後繼續顯示於鎖定畫面(最長 12 小時)。
+        // 過去的 willTerminate → end() 會在 iOS 回收 App 的瞬間把歌詞卡刪掉,
+        // 正是「鎖定一陣子後歌詞消失」的來源之一。歌詞卡只在以下情況結束:
+        // 播放停止、使用者於設定關閉即時活動(見 liveActivityForceEnd 觀察者)。
 
         // 設定頁關閉即時活動 → 立刻結束
         NotificationCenter.default.addObserver(

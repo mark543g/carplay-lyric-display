@@ -49,6 +49,8 @@ targets:
         PRODUCT_NAME: LyricFlow
         INFOPLIST_FILE: LyricFlow/Info.plist
         CODE_SIGN_ENTITLEMENTS: LyricFlow/LyricFlow.entitlements
+        # App 圖示(LyricFlow/Assets.xcassets/AppIcon.appiconset,源自根目錄 icon.png)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - target: LyricFlowWidgets
 
