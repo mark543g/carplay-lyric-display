@@ -61,6 +61,8 @@ final class PlaybackCenter: ObservableObject {
     var liveActivityLastError: String? { liveActivity.lastError }
     var liveActivityUpdateCount: Int { liveActivity.updateCount }
     var liveActivityBackgroundUpdateCount: Int { liveActivity.backgroundUpdateCount }
+    /// 背景心跳計數(診斷:背景中 tick 是否仍在跑)。
+    private(set) var backgroundTickCount = 0
 
     // MARK: - 啟動
 
@@ -321,6 +323,10 @@ final class PlaybackCenter: ObservableObject {
     // MARK: - 主循環
 
     private func tick() {
+        // 診斷:App 在背景時心跳還有沒有跑(>0 = App 活著,排除被 iOS 暫停)。
+        if UIApplication.shared.applicationState == .background {
+            backgroundTickCount += 1
+        }
         guard !isManualMode else {
             updateManualLine()
             return

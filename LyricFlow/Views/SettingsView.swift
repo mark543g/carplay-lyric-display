@@ -246,7 +246,7 @@ struct SettingsView: View {
             }
             LabeledContent("即時活動狀態") {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("授權:\(center.liveActivityAuthorized ? "允許" : "不允許")・活動:\(center.liveActivityActive ? "進行中" : "無")・更新:\(center.liveActivityUpdateCount)(背景:\(center.liveActivityBackgroundUpdateCount))")
+                    Text("授權:\(center.liveActivityAuthorized ? "允許" : "不允許")・活動:\(center.liveActivityActive ? "進行中" : "無")・更新:\(center.liveActivityUpdateCount)(背景:\(center.liveActivityBackgroundUpdateCount)・tick:\(center.backgroundTickCount))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if let error = center.liveActivityLastError {
