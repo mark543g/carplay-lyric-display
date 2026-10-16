@@ -40,6 +40,9 @@ struct LyricFlowApp: App {
                         if settings.spotifyConnectedOnce, !settings.spotifyClientID.trimmed.isEmpty {
                             SpotifyService.shared.autoConnect(clientID: settings.spotifyClientID)
                         }
+                    } else if settings.keepAliveEnabled {
+                        // 進入背景/鎖定前,確認無聲保活仍在播放(否則會被 iOS 暫停)
+                        KeepAliveAudioPlayer.shared.ensureRunning()
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .pipLyricsDidRequestRestore)) { _ in
