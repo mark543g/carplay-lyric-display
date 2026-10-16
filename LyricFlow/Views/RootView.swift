@@ -16,26 +16,40 @@ struct RootView: View {
                 .tabItem { Label("設定", systemImage: "gearshape.fill") }
         }
         .overlay(alignment: .top) {
-            // [診斷] 系統未允許即時活動 → 鎖定畫面 / CarPlay 不會出現歌詞卡。
-            // 直接在主畫面醒目提示,並可點擊跳到本 App 的設定頁。
-            if settings.liveActivityEnabled, !center.liveActivityAuthorized {
+            // [自我診斷] 打開 App 即顯示「歌詞卡為何不在」的第一個原因,點擊直接修復:
+            // 橙 = 本 App 的「即時活動」開關被關掉(過去完全靜默 → 現在直接說明白)
+            // 紅 = iOS 系統未允許即時活動
+            // 橘 = 授權正常但卡片建立失敗(附上失敗原因)
+            if !settings.liveActivityEnabled {
+                Button {
+                    settings.liveActivityEnabled = true
+                    if let track = center.track {
+                        center.refreshLiveActivity(track: track)
+                    }
+                } label: {
+                    statusBanner("「即時活動」已關閉:鎖定畫面 / CarPlay 不會顯示歌詞卡 · 點此開啟",
+                                 color: .orange)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
+            } else if !center.liveActivityAuthorized {
                 Button {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Text("⚠️ 系統未允許即時活動:鎖定畫面 / CarPlay 不會顯示歌詞卡。點此開啟「設定 → 歌詞行」把「即時活動」打開。")
-                        .font(.caption.bold())
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.white)
-                        .padding(10)
-                        .frame(maxWidth: 340)
-                        .background(Color.red.gradient, in: RoundedRectangle(cornerRadius: 14))
+                    statusBanner("系統未允許即時活動:鎖定畫面 / CarPlay 不會顯示歌詞卡 · 點此開啟設定",
+                                 color: .red)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
                 .padding(.top, 4)
-                .transition(.move(edge: .top).combined(with: .opacity))
+            } else if center.track != nil, !center.liveActivityActive {
+                statusBanner("歌詞卡未建立(鎖定畫面將無歌詞):\(center.liveActivityLastError ?? "原因不明")",
+                             color: .orange)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
             }
         }
         .overlay(alignment: .top) {
@@ -43,5 +57,15 @@ struct RootView: View {
                 FloatingLyricsOverlay()
             }
         }
+    }
+
+    private func statusBanner(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption.bold())
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.white)
+            .padding(10)
+            .frame(maxWidth: 340)
+            .background(color.gradient, in: RoundedRectangle(cornerRadius: 14))
     }
 }

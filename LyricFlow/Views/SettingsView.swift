@@ -204,6 +204,12 @@ struct SettingsView: View {
     private var displaySection: some View {
         Section {
             Toggle("即時活動(鎖定畫面 / 立動島 / CarPlay / Watch)", isOn: $settings.liveActivityEnabled)
+                .onChange(of: settings.liveActivityEnabled) { _, enabled in
+                    // 重新開啟時立刻補建歌詞卡(否則要等到下一首歌才恢復 —— 又是一個靜默失效)
+                    if enabled, let track = center.track {
+                        center.refreshLiveActivity(track: track)
+                    }
+                }
             Toggle("背景保活(播放中持續更新歌詞)", isOn: $settings.keepAliveEnabled)
             Toggle("App 內懸浮歌詞", isOn: $settings.overlayEnabled)
         } header: {
