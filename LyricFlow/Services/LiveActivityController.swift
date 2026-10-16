@@ -1,6 +1,5 @@
 import Foundation
 import ActivityKit
-import UIKit
 
 /// Live Activity 控制器(鎖定畫面 / 立動島 / CarPlay 儀表板 / Apple Watch Smart Stack)。
 ///
@@ -17,11 +16,6 @@ final class LiveActivityController {
 
     /// 已送出幾次活動更新(診斷用:鎖定後數字若不增加 = App 沒在更新)。
     private(set) var updateCount = 0
-
-    /// 其中「App 位於背景」時送出的次數(診斷 H1/H2):
-    /// - 鎖定期間有長大 → App 活著且真的有送更新(畫面不動 = iOS 不套用背景更新)
-    /// - 恆為 0 → App 被 iOS 暫停,根本沒送出(需查保活)
-    private(set) var backgroundUpdateCount = 0
 
     var isActive: Bool { activity != nil }
 
@@ -65,25 +59,13 @@ final class LiveActivityController {
 
     /// 內容更新(換歌或換行時呼叫;可在背景執行)。
     func update(state: LyricsActivityAttributes.ContentState) {
-        if let activity {
-            push(activity, state: state)
-            return
-        }
-        // [自我修復] 活動若已被系統回收(iOS 偶發,或 App 曾被重啟),
-        // 在前景時立即補建,避免「歌詞卡從此消失直到下一首歌」。
-        // 背景無法 request()(系統限制),維持原本靜默略過,回前景時會由
-        // ensureLiveActivity / 此處補建。
-        guard UIApplication.shared.applicationState == .active else { return }
-        ensureActive(state: state)
+        guard let activity else { return }
+        push(activity, state: state)
     }
 
     private func push(_ activity: Activity<LyricsActivityAttributes>,
                       state: LyricsActivityAttributes.ContentState) {
         updateCount += 1
-        // 只算 .background:回前景瞬間的 .inactive 不計,避免誤報
-        if UIApplication.shared.applicationState == .background {
-            backgroundUpdateCount += 1
-        }
         let content = ActivityContent(state: state, staleDate: nil) // 永不過期(同上)
         Task {
             await activity.update(content)

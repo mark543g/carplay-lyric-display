@@ -60,9 +60,6 @@ final class PlaybackCenter: ObservableObject {
     var liveActivityActive: Bool { liveActivity.isActive }
     var liveActivityLastError: String? { liveActivity.lastError }
     var liveActivityUpdateCount: Int { liveActivity.updateCount }
-    var liveActivityBackgroundUpdateCount: Int { liveActivity.backgroundUpdateCount }
-    /// 背景心跳計數(診斷:背景中 tick 是否仍在跑)。
-    private(set) var backgroundTickCount = 0
 
     // MARK: - 啟動
 
@@ -112,11 +109,14 @@ final class PlaybackCenter: ObservableObject {
             }
         }
 
-        // [修正] 不在 App 終止時結束活動:
-        // Apple 設計即時活動本來就能在 App 被系統回收後繼續顯示於鎖定畫面(最長 12 小時)。
-        // 過去的 willTerminate → end() 會在 iOS 回收 App 的瞬間把歌詞卡刪掉,
-        // 正是「鎖定一陣子後歌詞消失」的來源之一。歌詞卡只在以下情況結束:
-        // 播放停止、使用者於設定關閉即時活動(見 liveActivityForceEnd 觀察者)。
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.liveActivity.end()
+            }
+        }
 
         // 設定頁關閉即時活動 → 立刻結束
         NotificationCenter.default.addObserver(
@@ -320,10 +320,6 @@ final class PlaybackCenter: ObservableObject {
     // MARK: - 主循環
 
     private func tick() {
-        // 診斷:App 在背景時心跳還有沒有跑(>0 = App 活著,排除被 iOS 暫停)。
-        if UIApplication.shared.applicationState == .background {
-            backgroundTickCount += 1
-        }
         guard !isManualMode else {
             updateManualLine()
             return
