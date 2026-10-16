@@ -255,6 +255,10 @@ struct SettingsView: View {
                             .foregroundStyle(.red)
                             .multilineTextAlignment(.trailing)
                     }
+                    Text("若顯示「授權:允許・活動:進行中」但鎖定畫面仍無卡片:iOS 的「設定 → Face ID 與密碼 → 鎖定時允許存取 → 即時活動」可能已關閉。此系統設定 Apple 未提供 API,App 無法自行偵測或開啟。")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
                 }
             }
         } header: {
