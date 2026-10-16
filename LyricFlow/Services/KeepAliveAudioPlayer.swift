@@ -1,18 +1,23 @@
 import Foundation
 import AVFoundation
+import UIKit
 
-/// 背景保活:以循環播放的極低音量無聲音訊維持 App 執行,
-/// 讓歌詞引擎在背景(含鎖定)仍能持續接收播放進度、推送 Live Activity / 小工具更新。
+/// 背景保活:維持 App 在背景執行,讓歌詞引擎能持續推送 Live Activity 更新。
 ///
-/// 這是歌詞類 App 的標準做法:
-/// - AVAudioSession 設為 `.playback` + `.mixWithOthers`,不干擾他人播放
-/// - 與 Apple Music / Spotify 混音,音量趨近 0
-/// - 監聽中斷/重置事件並自動恢復,避免被 iOS 暫停(否則鎖定後即時活動只停在第一句)
+/// 依業界實務做法(Apple 開發者論壇 + App Store 上實際運作的 App):
+/// - 背景模式設 `audio`(Info.plist `UIBackgroundModes`)
+/// - `AVAudioSession` 設 `.playback` + `.mixWithOthers`,播放「無聲」檔案
+/// - **定期(每 20 秒)重新觸發播放 + 重新啟用 Session** ← 關鍵:
+///   只放一次循環音檔,iOS 過一段時間會停掉 Session 並暫停 App;
+///   週期性重觸發可讓 App 在背景長時間存活,即時活動才能持續更新。
+/// - 監聽中斷/重置事件並自動恢復
 final class KeepAliveAudioPlayer {
 
     static let shared = KeepAliveAudioPlayer()
 
     private var player: AVAudioPlayer?
+    private var refreshTimer: Timer?
+    private var observers: [NSObjectProtocol] = []
     private(set) var isRunning = false
 
     func start() {
@@ -20,9 +25,12 @@ final class KeepAliveAudioPlayer {
         configureAudioSession()
         installObservers()
         beginSilentLoop()
+        startRefreshTimer()
     }
 
     func stop() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
         player?.stop()
         player = nil
         isRunning = false
@@ -36,7 +44,7 @@ final class KeepAliveAudioPlayer {
         try? session.setActive(true)
     }
 
-    /// 若無聲循環因故停止,重新啟動(可於任意時機安全呼叫)。
+    /// 若無聲循環因故停止,重新啟動。
     func ensureRunning() {
         guard isRunning, player?.isPlaying != true else { return }
         restart()
@@ -67,10 +75,32 @@ final class KeepAliveAudioPlayer {
         beginSilentLoop()
     }
 
-    private var observers: [NSObjectProtocol] = []
+    /// 每 20 秒重新啟用 Session 並重新觸發播放,避免 iOS 判定 App 閒置而暫停。
+    private func startRefreshTimer() {
+        refreshTimer?.invalidate()
+        let timer = Timer(timeInterval: 20, repeats: true) { [weak self] _ in
+            self?.keepAliveTick()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
+    }
 
-    /// 中斷(來電 / 其他 App 佔用音訊)結束、或媒體服務重置後自動恢復,
-    /// 避免無聲循環停掉 → App 被暫停 → 即時活動不再更新。
+    private func keepAliveTick() {
+        configureAudioSession()
+        if let player {
+            if player.isPlaying {
+                // 重新觸發播放頭,維持「正在播放」狀態
+                player.currentTime = 0
+                player.play()
+            } else {
+                player.play()
+            }
+        } else {
+            beginSilentLoop()
+        }
+    }
+
+    /// 中斷(來電 / 其他 App 佔用音訊)結束、或媒體服務重置後自動恢復。
     private func installObservers() {
         guard observers.isEmpty else { return }
         let center = NotificationCenter.default
@@ -94,11 +124,7 @@ final class KeepAliveAudioPlayer {
         })
     }
 
-    /// 產生 n 秒的 16-bit 單聲道**極低振幅音訊**並轉為 WAV。
-    ///
-    /// 刻意不用「純數位靜音(全 0)」:iOS 有時會判定沒有實際音訊輸出而暫停 App,
-    /// 導致背景不再更新。改用約 0.9% 振幅、30Hz 的正弦(人耳幾乎不可聞),
-    /// 讓系統認定「確實在播放音訊」→ App 背景持續執行 → 即時活動能持續更新。
+    /// 產生 n 秒的 16-bit 單聲道無聲 WAV(全為靜音資料)。
     static func silentWAVData(seconds: Double) -> Data {
         let sampleRate = 22050
         let totalSamples = Int(Double(sampleRate) * seconds)
