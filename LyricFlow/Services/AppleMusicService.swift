@@ -2,6 +2,7 @@ import Foundation
 import MediaPlayer
 import MusicKit
 import UIKit
+import QuartzCore
 
 /// Apple Music(Music App)播放監聽與控制。
 ///
@@ -61,9 +62,37 @@ final class AppleMusicService: NSObject {
 
     // MARK: - 播放狀態讀取
 
+    /// [背景凍結修正] `currentPlaybackTime` 在 App 進背景後會回傳靜止值,
+    /// 導致背景永遠偵測不到歌詞換行(即時活動/小工具隨之凍結)。
+    /// 改採與 SpotifyService 相同的「錨點 + 經過時間」內插:
+    /// 系統回報的位置「有在動」時重新校正錨點;凍結時自行推算。
+    private var anchorPosition: TimeInterval = 0
+    private var anchorHostTime: CFTimeInterval = 0
+    private var lastLiveReading: TimeInterval = -1
+    /// 目前曲目時長(換行推算超出時夾住,避免跨到下一首)。
+    private var currentDuration: TimeInterval = 0
+
     /// 目前播放位置(秒)。
     var playbackPosition: TimeInterval {
-        player.currentPlaybackTime
+        let live = player.currentPlaybackTime
+        let now = CACurrentMediaTime()
+
+        if player.playbackState == .playing {
+            // 系統回報值有變化(前景)→ 校正錨點;凍結(背景)→ 沿用舊錨點自行推算
+            if abs(live - lastLiveReading) > 0.05 {
+                anchorPosition = live
+                anchorHostTime = now
+            }
+            lastLiveReading = live
+            let deadReckoned = anchorPosition + (now - anchorHostTime)
+            return currentDuration > 0 ? min(deadReckoned, currentDuration) : deadReckoned
+        } else {
+            // 暫停:以系統值為準並重設錨點
+            anchorPosition = live
+            anchorHostTime = now
+            lastLiveReading = live
+            return live
+        }
     }
 
     var isPlaying: Bool {
@@ -87,6 +116,8 @@ final class AppleMusicService: NSObject {
 
     private func handleItemChange() {
         let track = makeTrack(from: player.nowPlayingItem)
+        currentDuration = track?.duration ?? 0
+        lastLiveReading = -1 // 換歌:強制下次輪詢重新校正錨點
         // 沿用同一首則不觸發換歌
         if let new = track, let old = lastTrack, new.id == old.id, new.title == old.title {
             lastTrack = track
@@ -98,6 +129,7 @@ final class AppleMusicService: NSObject {
     }
 
     private func handleStateChange() {
+        lastLiveReading = -1 // 播放/暫停轉換:重新校正錨點
         onPlaybackStateChange?(isPlaying)
     }
 
