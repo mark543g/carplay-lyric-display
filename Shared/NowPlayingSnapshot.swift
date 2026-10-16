@@ -68,17 +68,52 @@ public struct NowPlayingSnapshot: Codable, Sendable {
 }
 
 /// App Group 快取讀寫器(主 App 寫入;Widget / CarPlay 讀取)。
+///
+/// 快照以「檔案」儲存於 App Group 容器,並明確標記為
+/// `completeUntilFirstUserAuthentication` —— 這是關鍵:
+/// iPhone **鎖定時** widget / 鎖定畫面 / CarPlay 仍能讀到快照,
+/// 否則會因資料保護而讀不到 → 鎖定時顯示空白「未播放」。
+/// (保留舊版 UserDefaults 讀取作為升級後備。)
 public enum SharedStore {
-    private static let snapshotKey = "nowPlayingSnapshot"
+    private static let legacySnapshotKey = "nowPlayingSnapshot"
+    private static let snapshotFileName = "now_playing_snapshot.json"
+
+    private static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupID)
+    }
+
+    private static var snapshotFileURL: URL? {
+        containerURL?.appendingPathComponent(snapshotFileName, isDirectory: false)
+    }
 
     public static func saveSnapshot(_ snapshot: NowPlayingSnapshot) {
-        if let data = try? JSONEncoder().encode(snapshot) {
-            AppConstants.sharedDefaults.set(data, forKey: snapshotKey)
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+
+        if let url = snapshotFileURL {
+            do {
+                try data.write(to: url, options: [.atomic])
+                // 鎖定時仍可讀(否則鎖定畫面 / CarPlay 讀不到 → 空白)
+                try FileManager.default.setAttributes(
+                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                    ofItemAtPath: url.path
+                )
+                return
+            } catch {
+                // 落檔失敗 → 退回 UserDefaults(至少解鎖時可見)
+            }
         }
+        AppConstants.sharedDefaults.set(data, forKey: legacySnapshotKey)
     }
 
     public static func loadSnapshot() -> NowPlayingSnapshot? {
-        guard let data = AppConstants.sharedDefaults.data(forKey: snapshotKey) else { return nil }
+        // 1) 檔案(可在 iPhone 鎖定時讀取)
+        if let url = snapshotFileURL,
+           let data = try? Data(contentsOf: url),
+           let snapshot = try? JSONDecoder().decode(NowPlayingSnapshot.self, from: data) {
+            return snapshot
+        }
+        // 2) 升級後備:舊版 UserDefaults
+        guard let data = AppConstants.sharedDefaults.data(forKey: legacySnapshotKey) else { return nil }
         return try? JSONDecoder().decode(NowPlayingSnapshot.self, from: data)
     }
 
