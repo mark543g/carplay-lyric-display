@@ -74,6 +74,13 @@
 
 1. **放棄 accessoryInline**:使用者實測時鐘上方 inline 完全不更新 — 與 rectangular 同一 widget kind、同一預生成時間軸,rectangular 會跟隨而 inline 永遠停在加入時那一行。判定為 WidgetKit/鎖定畫面對 inline 家族的平台行為(不主動重繪),程式端無可用更新鈎子。處置:`.accessoryInline` 從 supportedFamilies 移除、`InlineLyricsView` 刪除。鎖定畫面歌詞現況:rectangular(左右兩格、各半寬)= 唯一跟得穩的 widget;LA 卡 = 備援($99 解鎖 APNs 後)。
 2. **README 全面重寫**:功能總覽對齊現況(LA 預設停用、inline 已移除、識歌/CarPlay 傳統頁標註需付費帳號)、新增「鎖定畫面歌詞的現況」與「免費簽章的額度陷阱」段、台灣用語全面校正(桌面→主畫面、立動島→動態島、備案→備援方案、資料外送→資料流向、發布→發佈等)。
+## PiP 懸浮歌詞修正 — build 46(2026-10-18)
+
+使用者實測「跨 App 懸浮窗」開啟後看到的是音樂播放器樣式、沒有歌詞。排查:PiP 實作本身已是自繪歌詞畫格(AVSampleBufferDisplayLayer + CVPixelBuffer 逐格渲染,非 AVPlayer),但有三個斷點讓畫格顯示不出來、內容停在初始值:
+1. **layer 掛在 hidden 視圖**:hidden 視圖的 layer 不會合成,畫格推了也顯示不出來;且掛載點(pipAttachPoint)在 NowPlayingView 內,離開該頁就被移出 layer 樹 → 改為控制器自行 attachLayerToWindow(常駐 key window 離屏位置、isHidden=false),pipAttachPoint/PiPPreviewContainer 移除。
+2. **畫格 timing 全 invalid**:CMSampleTimingInfo.invalid → 改為有效 PTS(frameIndex 遞增、0.4s 一格),系統才能依序取格。
+3. **內容推送閘門依賴 didStart**:若 didStart 未送達,isPiPActive 永遠 false → 內容停在初始「正在播放…」。renderFrame 加自癒輪詢(pipController.isPictureInPictureActive 補真)。
+另:啟動時直接帶入當前歌詞(start(initialFrame: PlaybackCenter.currentPiPFrame()),不再從「正在播放…」起步);App UI 用語「立動島」→「動態島」(4 處)。
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -155,6 +162,7 @@
 | 42 | (本次) | 鎖定畫面改版:LA 卡停用(預設關+一次性遷移+啟動 endAll)、widget 新增右半格拼全寬、歌詞字體 footnote→title3 放大 | CI 成功 |
 | 43 | (本次) | 移除右半格 widget(兩格呈現被否決)、inline 改歌詞優先單行、LA 卡降為 $99 後備註 | CI 成功 |
 | 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 成功 |
+| 46 | (本次) | PiP 懸浮歌詞修正(離屏掛載/有效 PTS/自癒閘門/啟動即帶當前歌詞)、立動島→動態島 | CI 執行中 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -172,7 +180,7 @@
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 45(放棄 inline + README 重寫;run 43/44 = CI 成功)
+- 最新:run 46(PiP 懸浮歌詞修正;run 45 = CI 成功)
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。

@@ -203,7 +203,7 @@ struct SettingsView: View {
 
     private var displaySection: some View {
         Section {
-            Toggle("即時活動(鎖定畫面 / 立動島 / CarPlay / Watch)", isOn: $settings.liveActivityEnabled)
+            Toggle("即時活動(鎖定畫面 / 動態島 / CarPlay / Watch)", isOn: $settings.liveActivityEnabled)
             Toggle("背景保活(播放中持續更新歌詞)", isOn: $settings.keepAliveEnabled)
             Toggle("App 內懸浮歌詞", isOn: $settings.overlayEnabled)
         } header: {

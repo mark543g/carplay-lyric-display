@@ -42,7 +42,6 @@ struct NowPlayingView: View {
         } message: {
             Text("此裝置不支援畫中畫,或播放類別未生效。請確認已在背景播放狀態下重試。")
         }
-        .background(pipAttachPoint)
     }
 
     // MARK: - 標題列
@@ -204,13 +203,13 @@ struct NowPlayingView: View {
                 if pip.isPiPActive {
                     pip.stop()
                 } else {
-                    showPiPError = !pip.start()
+                    showPiPError = !pip.start(initialFrame: center.currentPiPFrame())
                 }
             }
 
             actionCard(
                 title: "即時活動",
-                subtitle: settings.liveActivityEnabled ? "鎖定畫面·立動島:開" : "已停用",
+                subtitle: settings.liveActivityEnabled ? "鎖定畫面·動態島:開" : "已停用",
                 icon: "sparkles.rectangle.stack.fill"
             ) {
                 settings.liveActivityEnabled.toggle()
@@ -292,22 +291,4 @@ struct NowPlayingView: View {
         }
     }
 
-    // MARK: - PiP layer 掛載點
-
-    /// PiP 啟動前 AVSampleBufferDisplayLayer 需存在於 layer 樹中,
-    /// 以一個隱藏的小視圖掛載。
-    private var pipAttachPoint: some View {
-        PiPPreviewContainer()
-            .frame(width: 0, height: 0)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    }
-}
-
-/// 承載 PiP 預覽 layer 的極小容器。
-private struct PiPPreviewContainer: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        PiPLyricsController.shared.previewView
-    }
-    func updateUIView(_ uiView: UIView, context: Context) {}
 }

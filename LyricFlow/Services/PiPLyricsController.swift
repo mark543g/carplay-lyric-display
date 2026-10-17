@@ -36,17 +36,31 @@ final class PiPLyricsController: NSObject, ObservableObject {
     let displayLayer = AVSampleBufferDisplayLayer()
     private var pipController: AVPictureInPictureController?
     private var renderTimer: Timer?
+    private var frameIndex: Int64 = 0
     private let renderSize = CGSize(width: 1280, height: 720)
 
-    /// 內嵌在 App 內的小預覽圖層(PiP 啟動前 layer 需在 layer 樹中)。
+    /// PiP 的畫格來源視圖。
+    /// 必須常駐掛在可見 window 的 layer 樹中且不可 hidden,畫格才能合成。
+    /// build 46:掛載點從 NowPlayingView(離開該頁即被移出 layer 樹)改為控制器自行掛到 key window 離屏位置。
     lazy var previewView: UIView = {
         let view = UIView(frame: CGRect(x: 0, y: 0, width: 160, height: 90))
         displayLayer.frame = view.bounds
         displayLayer.videoGravity = .resizeAspect
         view.layer.addSublayer(displayLayer)
-        view.isHidden = true
+        view.isHidden = false
         return view
     }()
+
+    /// 把 previewView 掛到 key window 的畫面外(位置在螢幕外,不可見但參與合成)。
+    private func attachLayerToWindow() {
+        guard previewView.superview == nil else { return }
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) else { return }
+        previewView.frame = CGRect(x: -2000, y: -2000, width: 160, height: 90)
+        window.addSubview(previewView)
+    }
 
     private override init() {
         super.init()
@@ -67,9 +81,10 @@ final class PiPLyricsController: NSObject, ObservableObject {
     // MARK: - 啟動 / 停止
 
     @discardableResult
-    func start() -> Bool {
+    func start(initialFrame: LyricsFrame? = nil) -> Bool {
         KeepAliveAudioPlayer.shared.configureAudioSession()
-        _ = previewView // 確保 layer 已掛載
+        attachLayerToWindow()
+        if let initialFrame { frame = initialFrame }
         startRenderLoop()
         guard let pipController, pipController.isPictureInPicturePossible else {
             return false
@@ -99,7 +114,14 @@ final class PiPLyricsController: NSObject, ObservableObject {
     }
 
     private func renderFrame() {
-        guard let sampleBuffer = Self.makeSampleBuffer(rendering: frame, size: renderSize) else { return }
+        // build 46:自癒 — didStart 未送達時,以系統真實狀態補回 isPiPActive(內容推送閘門)
+        if pipController?.isPictureInPictureActive == true, !isPiPActive {
+            isPiPActive = true
+        }
+        // build 46:畫格需帶有效 PTS(0.4s 一格遞增),系統才能依序取格
+        let pts = CMTime(value: frameIndex * 2, timescale: 5)
+        frameIndex += 1
+        guard let sampleBuffer = Self.makeSampleBuffer(rendering: frame, size: renderSize, pts: pts) else { return }
         if displayLayer.status == .failed {
             displayLayer.flush()
         }
@@ -109,7 +131,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
     // MARK: - 繪製
 
     /// 把歌詞畫格渲染成 CMSampleBuffer。
-    static func makeSampleBuffer(rendering frame: LyricsFrame, size: CGSize) -> CMSampleBuffer? {
+    static func makeSampleBuffer(rendering frame: LyricsFrame, size: CGSize, pts: CMTime) -> CMSampleBuffer? {
         guard let pixelBuffer = createPixelBuffer(size: size) else { return nil }
 
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
@@ -130,9 +152,12 @@ final class PiPLyricsController: NSObject, ObservableObject {
         context.draw(cgImage, in: CGRect(origin: .zero, size: size))
 
         guard let formatDescription = createFormatDescription(pixelBuffer) else { return nil }
-        // 官方常數 CMSampleTimingInfo.invalid(全 invalid 的 timing);
-        // displayLayer 依序顯示畫格,節奏由 renderTimer 控制
-        var timing = CMSampleTimingInfo.invalid
+        // build 46:畫格帶有效 timing(CMSampleTimingInfo.invalid 會讓系統取不到畫格)
+        var timing = CMSampleTimingInfo(
+            duration: CMTime(value: 2, timescale: 5),
+            presentationTimeStamp: pts,
+            decodeTimeStamp: .invalid
+        )
         var sample: CMSampleBuffer?
         let status = CMSampleBufferCreateReadyWithImageBuffer(
             allocator: kCFAllocatorDefault,

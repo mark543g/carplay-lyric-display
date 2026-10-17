@@ -36,7 +36,7 @@
 	<key>AppGroupIdentifier</key>
 	<string>$(LYRICFLOW_APP_GROUP)</string>
 
-	<!-- 即時活動(鎖定畫面 / 立動島 / CarPlay / Watch) -->
+	<!-- 即時活動(鎖定畫面 / 動態島 / CarPlay / Watch) -->
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 

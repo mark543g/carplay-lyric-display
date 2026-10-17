@@ -483,14 +483,18 @@ final class PlaybackCenter: ObservableObject {
 
     // MARK: - PiP
 
-    private func updatePiPFrame() {
-        guard PiPLyricsController.shared.isPiPActive else { return }
-        PiPLyricsController.shared.frame = .init(
+    func currentPiPFrame() -> PiPLyricsController.LyricsFrame {
+        .init(
             line: currentLine?.text ?? "♪",
             translation: currentLineTranslation,
             progress: lineProgress,
             trackTitle: track.map { "\($0.title) — \($0.artist)" } ?? "LyricFlow"
         )
+    }
+
+    private func updatePiPFrame() {
+        guard PiPLyricsController.shared.isPiPActive else { return }
+        PiPLyricsController.shared.frame = currentPiPFrame()
     }
 
     // MARK: - 快照

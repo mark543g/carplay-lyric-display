@@ -2,7 +2,7 @@ import Foundation
 import ActivityKit
 import UIKit
 
-/// Live Activity 控制器(鎖定畫面 / 立動島 / CarPlay 儀表板 / Apple Watch Smart Stack)。
+/// Live Activity 控制器(鎖定畫面 / 動態島 / CarPlay 儀表板 / Apple Watch Smart Stack)。
 ///
 /// [關鍵] 活動「只能在 App 前景建立」。因此本控制器採「前景建立一次、之後只 update」:
 /// 曲目與歌詞都放在 ContentState(動態),換歌/換行都用 `update()`(背景亦可),
