@@ -128,7 +128,7 @@ struct LyricsWidget: Widget {
             LyricsWidgetView(entry: entry)
         }
         .configurationDisplayName("動態歌詞")
-        .description("即時雙語歌詞:桌面、鎖定畫面、StandBy 與 CarPlay。鎖定畫面需左右兩格並排(右格加『歌詞行・右半』)才是全寬大字。")
+        .description("即時雙語歌詞:桌面、鎖定畫面、StandBy 與 CarPlay。")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,
@@ -333,8 +333,17 @@ private struct LargeLyricsView: View {
 private struct InlineLyricsView: View {
     let entry: LyricsWidgetEntry
 
+    // [build 43] 鎖定畫面主呈現:inline 一行(時鐘上方、全寬) = 歌詞優先
     var body: some View {
-        Text("\(entry.snapshot?.title ?? "") · \(entry.activeLine?.text ?? "未播放")")
+        Text(text)
+    }
+
+    private var text: String {
+        if let line = entry.activeLine?.text, !line.isEmpty { return line }
+        if let s = entry.snapshot {
+            return s.artist.isEmpty ? s.title : "\(s.title) · \(s.artist)"
+        }
+        return "LyricFlow"
     }
 }
 
@@ -363,53 +372,6 @@ private struct RectangularLyricsView: View {
     private var fallbackInfo: String {
         guard let s = entry.snapshot else { return "LyricFlow" }
         return s.artist.isEmpty ? s.title : "\(s.title) · \(s.artist)"
-    }
-}
-
-// MARK: - 鎖定畫面右半格(與左格「動態歌詞」並排 → 視覺全寬)
-
-private struct RectangularRightLyricsView: View {
-    let entry: LyricsWidgetEntry
-
-    var body: some View {
-        Text(display.text)
-            .font(.title3.bold())
-            .lineLimit(3)
-            .minimumScaleFactor(0.6)
-            .foregroundStyle(display.dim ? Color.secondary : Color.primary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-
-    /// 右半格大字:翻譯 → 下一行 → 歌名・歌手。
-    private var display: (text: String, dim: Bool) {
-        if let t = entry.activeLine?.translation, !t.isEmpty { return (t, false) }
-        if let next = nextLineText { return (next, true) }
-        if let s = entry.snapshot { return ("\(s.title) · \(s.artist)", true) }
-        return ("LyricFlow", true)
-    }
-
-    private var nextLineText: String? {
-        guard let active = entry.activeLine, let snap = entry.snapshot,
-              let i = snap.lines.firstIndex(where: { $0.start == active.start }),
-              i + 1 < snap.lines.count else { return nil }
-        return snap.lines[i + 1].text
-    }
-}
-
-/// 鎖定畫面右半格小工具:加入右格與左格拼成全寬歌詞列。
-struct LyricsRectRightWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(
-            kind: AppConstants.lyricsWidgetRightKind,
-            provider: LyricsTimelineProvider()
-        ) { entry in
-            RectangularRightLyricsView(entry: entry)
-                .containerBackground(for: .widget) { Color.black }
-        }
-        .configurationDisplayName("歌詞行・右半")
-        .description("加到鎖定畫面右格,與『動態歌詞』左右並排拼成全寬大字歌詞。")
-        .supportedFamilies([.accessoryRectangular])
-        .containerBackgroundRemovable(true)
     }
 }
 

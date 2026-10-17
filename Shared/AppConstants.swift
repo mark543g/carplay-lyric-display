@@ -86,8 +86,6 @@ public enum AppConstants {
 
     /// 桌面小工具的 kind(WidgetKit 註冊用)。
     public static let lyricsWidgetKind = "com.lab.lyricflow.lyrics"
-    /// 鎖定畫面右半格小工具的 kind(與 lyricsWidgetKind 左右並排拼成全寬)。
-    public static let lyricsWidgetRightKind = "com.lab.lyricflow.lyrics.right"
 
     /// SharedStore(UserDefaults)suite 名稱。
     ///
