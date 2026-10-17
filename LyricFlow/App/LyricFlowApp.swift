@@ -36,6 +36,8 @@ struct LyricFlowApp: App {
                     if newPhase == .active {
                         // 即時活動只能在 App 前景建立:回前景時補建立
                         center.ensureLiveActivity()
+                        // 回前景:解除背景釘住,重新對帳來源/曲目(背景期間可能暫緩切換)
+                        center.syncFromSettingsChange()
                         // 回前景:自動連線(in-memory 權杖 → 快取權杖,皆靜默)
                         if settings.spotifyConnectedOnce, !settings.spotifyClientID.trimmed.isEmpty {
                             SpotifyService.shared.autoConnect(clientID: settings.spotifyClientID)

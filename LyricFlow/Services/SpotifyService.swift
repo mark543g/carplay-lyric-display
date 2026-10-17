@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import SwiftUI
 #if canImport(SpotifyiOS)
 import SpotifyiOS
@@ -207,8 +208,13 @@ final class SpotifyService: NSObject, ObservableObject {
     var playbackPosition: TimeInterval? {
         guard let state = lastPlayerState else { return nil }
         if state.isPaused { return state.position / 1000 }
-        let elapsed = (CACurrentMediaTime() - state.hostTime) * state.speed
-        return (state.position + elapsed * 1000) / 1000
+        // speed=0(暫停/緩衝瞬間的回報)會讓推算永久停走 → 一律當 1.0 處理
+        let speed = state.speed > 0 ? state.speed : 1.0
+        let elapsed = (CACurrentMediaTime() - state.hostTime) * speed
+        let seconds = (state.position + elapsed * 1000) / 1000
+        // 夾住曲目時長:斷線期間跨過結尾時,停在最後一行而不是無限增長
+        let duration = lastTrack?.duration ?? 0
+        return duration > 0 ? min(seconds, duration) : seconds
     }
 
     var isPlaying: Bool {
@@ -327,7 +333,12 @@ extension SpotifyService: SPTAppRemoteDelegate {
     nonisolated func appRemote(_ appRemote: SPTAppRemote, didDisconnectWithError error: Error?) {
         Task { @MainActor in
             self.connectionState = .disconnected
-            self.lastPlayerState = nil
+            if UIApplication.shared.applicationState == .active {
+                // 前景斷線:照舊清空,避免用陳舊錨點繼續推算
+                self.lastPlayerState = nil
+            }
+            // 背景斷線:保留 lastPlayerState 作為位置推算錨點 — 清除會讓歌詞卡
+            // 立即凍結在斷線瞬間(背景跟隨修正,build 38)。重連時由新狀態校正。
         }
     }
 

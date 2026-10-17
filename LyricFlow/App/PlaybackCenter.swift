@@ -21,6 +21,8 @@ final class PlaybackCenter: ObservableObject {
 
     private var cancellables: Set<AnyCancellable> = []
     private var ticker: Timer?
+    /// 最近一次活動心跳推送(播放中每 2 秒補推一次,見 tick() 內背景心跳)。
+    private var lastHeartbeatPush: Date = .distantPast
 
     // MARK: - UI 狀態
 
@@ -150,6 +152,14 @@ final class PlaybackCenter: ObservableObject {
     }
 
     private func resolveCandidate() -> Candidate {
+        // [背景釘住] 背景期間 Spotify App Remote 可能斷線、或來源回報陳舊資料;
+        // 一旦切到陳舊來源,位置會凍結(歌詞不再跟隨)或被拆卡。
+        // 一律釘住「目前顯示中的來源」—其位置由錨點+經過時間內插,斷線後仍持續推算。
+        if UIApplication.shared.applicationState != .active,
+           let active = activeSource, active != .recognition {
+            return pinnedCandidate(for: active)
+        }
+
         let preference = settings.sourcePreference
 
         switch preference {
@@ -194,6 +204,13 @@ final class PlaybackCenter: ObservableObject {
         guard !isManualMode else { return }
         let candidate = resolveCandidate()
 
+        // [背景守衛] 背景不拆卡(candidate 無曲目)、不換來源(陳舊來源搶奪);
+        // 同來源的真實換歌照常套用,回前景時由 syncFromSettingsChange 重新對帳。
+        if UIApplication.shared.applicationState != .active {
+            if candidate.track == nil, track != nil { return }
+            if activeSource != nil, candidate.source != activeSource { return }
+        }
+
         let changedSource = candidate.source != activeSource
         let changedTrack = candidate.track?.id != track?.id
         let artworkChanged = candidate.track?.artworkPNG != nil && candidate.track?.artworkPNG != track?.artworkPNG
@@ -220,6 +237,30 @@ final class PlaybackCenter: ObservableObject {
         } else if candidate.track == nil, track != nil {
             // 來源清空
             applyCandidate(candidate)
+        }
+    }
+
+    /// 背景釘住候選:來源與曲目維持現狀,只取該來源的推算位置/狀態。
+    private func pinnedCandidate(for source: MusicSource) -> Candidate {
+        switch source {
+        case .spotify:
+            if let position = spotify.playbackPosition {
+                return Candidate(source: .spotify,
+                                 track: spotify.lastTrack ?? track,
+                                 position: position,
+                                 isPlaying: spotify.isPlaying)
+            }
+            return Candidate(source: .spotify, track: track, position: position, isPlaying: isPlaying)
+        case .appleMusic:
+            if let amTrack = appleMusic.lastTrack {
+                return Candidate(source: .appleMusic,
+                                 track: amTrack,
+                                 position: appleMusic.playbackPosition,
+                                 isPlaying: appleMusic.isPlaying)
+            }
+            return Candidate(source: .appleMusic, track: track, position: position, isPlaying: isPlaying)
+        default:
+            return Candidate(source: source, track: track, position: position, isPlaying: isPlaying)
         }
     }
 
@@ -352,6 +393,14 @@ final class PlaybackCenter: ObservableObject {
 
         updateLine()
         updatePiPFrame()
+
+        // [背景心跳] 鎖定後即使行未變,每 2 秒補推一次活動:讓進度平滑推進,
+        // 且關於頁「更新:N」在鎖定後持續累積 = 背景推送存活的自證。
+        if isPlaying, settings.liveActivityEnabled,
+           Date().timeIntervalSince(lastHeartbeatPush) >= 2.0 {
+            lastHeartbeatPush = Date()
+            liveActivity.update(state: makeContentState())
+        }
     }
 
     private func updateLine() {

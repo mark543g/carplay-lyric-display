@@ -48,6 +48,19 @@
 - **電腦端行動順序**:① 更新 Sideloadly 重簽;② 換簽名工具(AltServer/AltStore 或 Impactor — 社群對此症狀的直接解法);③ 換 Apple ID(新團隊,順帶重置 10-App-ID/7 天額度);④ 付費 Developer Program($99/yr)= 永久解(同時解鎖 APNs LA 推播、CarPlay playable-content、ShazamKit、1 年憑證 — 本專案被免費層卡住的全部項目)。
 - 程式端無遺留可修項:LA 視圖必須由 widget 擴充渲染,擴充載入與否完全由簽章驗證決定。
 
+## 背景跟隨(鎖定畫面歌詞凍結)— build 38(2026-10-17 深夜)
+
+症狀:簽章問題解決後卡片會顯示,但「再度回到鎖定畫面,歌詞不會跟隨」(停在解鎖前那一行)。
+更新鏈路:PlaybackCenter `tick()`(0.25s Timer)→ 來源位置 → 偵測換行 → `activity.update()`。位置已用「錨點+經過時間」內插。三個可能斷點,build 38 全部補強:
+
+1. **Spotify App Remote 背景斷線**:`didDisconnectWithError` 原本 `lastPlayerState = nil` → 推算錨點被銷毀 → 位置永久凍結;`.auto` 又會跌落到陳舊 Apple Music 來源(切錯歌或拆卡)。修正:背景斷線保留最後狀態作錨點(前景照舊清空)、背景釘住目前來源(pinnedCandidate)、背景不拆卡不換來源(syncCandidateTracks 守衛)、回前景 `syncFromSettingsChange()` 重新對帳。
+2. **Apple Music 背景狀態誤報**:`playbackPosition` 原以 `player.playbackState == .playing` 分支,背景若回報非 playing → 錨點重錨到凍結值 → 位置停走。修正:trustedPlaying(前景=即時值,背景=通知確認的 lastKnownPlaying),暫停只在轉換瞬間凍結一次(wasTrustedPlaying)。
+3. **推送節奏**:原本僅換行時 update。新增背景心跳:播放中每 2 秒補推一次活動 — 進度平滑推進,且「關於 → 更新:N」鎖定後持續累積 = 背景推送存活的自證。
+
+前提:KeepAliveAudioPlayer 無聲 audio + UIBackgroundModes=audio 讓 App 不被掛起(既有機制,未動)。
+系統層備案(懷疑 App 被系統終止時):iOS 26「設定 → 開發人員 → Fast App Termination」若開啟,系統會快速終止背景 App 導致活動停止更新;Apple 官方社群有關閉後恢復的案例。裝置端開關,非確證不動它。
+已知取捨:背景暫停若無通知送達,位置會多推算一段(下次狀態通知或回前景即校正);背景期間真正跨來源切換的歌曲要回前景才切。
+
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -123,6 +136,7 @@
 | 35 | `be21d63` | LA 被 iOS 擋下時主畫面顯示原因 + 一鍵開啟設定;關於頁註明鎖定畫面存取的系統層限制 | 使用者回報:App 無提示(全綠)、鎖定畫面仍無卡片 |
 | 36 | `5214929` | 啟動時刪舊卡重建新卡(開關重切的程式碼版);偵測 widget 擴充是否被重簽移除並顯示;關於頁顯示擴充狀態與簽章 App Group;HANDOFF 記錄外部調查 | 使用者回報:仍無卡;LA 開關重切、專注模式排除均無效 |
 | 37 | 本次提交 | 關於頁新增「描述檔 App ID」與「擴充描述檔:內嵌/缺失」簽章診斷(重簽前後對照用);HANDOFF 記錄根因定論 | 使用者回報:iLoader 報「憑證達到上限」,重新簽發後一切正常 |
+| 38 | 本次提交 | 背景跟隨修復:Spotify 斷線保留推算錨點、背景釘住來源與不拆卡、Apple Music trusted 狀態分診、2 秒活動心跳 | 建置中 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -140,7 +154,7 @@
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 37(`c14161b`,簽章診斷顯示 — 描述檔 App ID、擴充描述檔內嵌/缺失)。
+- 最新:run 38(背景跟隨修復 — 背景釘住來源、斷線保留錨點、trusted 狀態、2 秒心跳)。
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。

@@ -66,6 +66,11 @@ final class AppleMusicService: NSObject {
     /// 導致背景永遠偵測不到歌詞換行(即時活動/小工具隨之凍結)。
     /// 改採與 SpotifyService 相同的「錨點 + 經過時間」內插:
     /// 系統回報的位置「有在動」時重新校正錨點;凍結時自行推算。
+    /// 背景可信播放狀態:前景用系統即時值;背景系統值可能失真/凍結,
+    /// 改用狀態通知最後確認的值(通知未送達時維持進入背景時的狀態)。
+    private var lastKnownPlaying = false
+    /// 剛從播放轉停(僅轉換瞬間允許凍結錨點一次)。
+    private var wasTrustedPlaying = false
     private var anchorPosition: TimeInterval = 0
     private var anchorHostTime: CFTimeInterval = 0
     private var lastLiveReading: TimeInterval = -1
@@ -77,7 +82,8 @@ final class AppleMusicService: NSObject {
         let live = player.currentPlaybackTime
         let now = CACurrentMediaTime()
 
-        if player.playbackState == .playing {
+        if trustedPlaying {
+            wasTrustedPlaying = true
             // 系統回報值有變化(前景)→ 校正錨點;凍結(背景)→ 沿用舊錨點自行推算
             if abs(live - lastLiveReading) > 0.05 {
                 anchorPosition = live
@@ -88,15 +94,31 @@ final class AppleMusicService: NSObject {
             return currentDuration > 0 ? min(deadReckoned, currentDuration) : deadReckoned
         } else {
             // 暫停:以系統值為準並重設錨點
-            anchorPosition = live
-            anchorHostTime = now
-            lastLiveReading = live
-            return live
+            if wasTrustedPlaying {
+                // 剛轉停:前景採系統值;背景採「推算到此刻」後凍結(背景系統值凍結不可信)
+                anchorPosition = UIApplication.shared.applicationState == .active
+                    ? live
+                    : anchorPosition + (now - anchorHostTime)
+                anchorHostTime = now
+                lastLiveReading = live
+                wasTrustedPlaying = false
+            } else if anchorHostTime == 0 {
+                // 從未建立錨點(啟動時即暫停):直接採用系統值
+                anchorPosition = live
+                anchorHostTime = now
+                lastLiveReading = live
+            }
+            return currentDuration > 0 ? min(anchorPosition, currentDuration) : anchorPosition
         }
     }
 
-    var isPlaying: Bool {
-        player.playbackState == .playing
+    var isPlaying: Bool { trustedPlaying }
+
+    /// 播放狀態:前景 = 系統即時值;背景 = 通知確認值(避免背景凍結/誤報讓位置停走)。
+    private var trustedPlaying: Bool {
+        UIApplication.shared.applicationState == .active
+            ? player.playbackState == .playing
+            : lastKnownPlaying
     }
 
     // MARK: - 播放控制(MPMediaPlayback)
@@ -129,6 +151,7 @@ final class AppleMusicService: NSObject {
     }
 
     private func handleStateChange() {
+        lastKnownPlaying = player.playbackState == .playing
         lastLiveReading = -1 // 播放/暫停轉換:重新校正錨點
         onPlaybackStateChange?(isPlaying)
     }
