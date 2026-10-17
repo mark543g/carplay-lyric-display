@@ -81,6 +81,10 @@
 2. **畫格 timing 全 invalid**:CMSampleTimingInfo.invalid → 改為有效 PTS(frameIndex 遞增、0.4s 一格),系統才能依序取格。
 3. **內容推送閘門依賴 didStart**:若 didStart 未送達,isPiPActive 永遠 false → 內容停在初始「正在播放…」。renderFrame 加自癒輪詢(pipController.isPictureInPictureActive 補真)。
 另:啟動時直接帶入當前歌詞(start(initialFrame: PlaybackCenter.currentPiPFrame()),不再從「正在播放…」起步);App UI 用語「立動島」→「動態島」(4 處)。
+## PiP 全黑根因 — build 47(2026-10-18)
+
+build 46 後使用者實測:PiP 視窗開啟但全黑。根因查證(Apple Developer Forums + Stack Overflow 確認):**AVSampleBufferDisplayLayer 的 pixel buffer 必須以 IOSurface backing** — 缺 kCVPixelBufferIOSurfacePropertiesKey 時「模擬器正常、實機完全不渲染」(status 無錯誤、isReadyForMoreMediaData=true,就是不顯示),與症狀吻合;PiP 視窗由系統跨行程渲染,無 IOSurface 的 buffer 無法共享。處置:createPixelBuffer 加 IOSurface key;另加 requiresFlushToResumeDecoding → flush(鎖屏一段時間後黑屏的官方解法)。build 46 的離屏掛載/有效 PTS/自癒閘門仍是必要修正,但非全黑主因。
+
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -163,6 +167,7 @@
 | 43 | (本次) | 移除右半格 widget(兩格呈現被否決)、inline 改歌詞優先單行、LA 卡降為 $99 後備註 | CI 成功 |
 | 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 成功 |
 | 46 | (本次) | PiP 懸浮歌詞修正(離屏掛載/有效 PTS/自癒閘門/啟動即帶當前歌詞)、立動島→動態島 | CI 成功(run 47) |
+| 47 | (本次) | PiP 全黑根因修正:pixel buffer 加 IOSurface backing + requiresFlushToResumeDecoding flush | CI 執行中 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -180,7 +185,7 @@
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 47 = build 46(a53c380,PiP 修正)= CI 成功;artifact LyricFlow-1.0-47-unsigned-ipa(docs push 亦佔 run 號,build 標籤以 code push 為準)
+- 最新:run 49 預定 = build 47(PiP IOSurface 修正);run 47 = build 46 CI 成功、run 48 = docs
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。

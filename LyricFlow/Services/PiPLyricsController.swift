@@ -122,7 +122,8 @@ final class PiPLyricsController: NSObject, ObservableObject {
         let pts = CMTime(value: frameIndex * 2, timescale: 5)
         frameIndex += 1
         guard let sampleBuffer = Self.makeSampleBuffer(rendering: frame, size: renderSize, pts: pts) else { return }
-        if displayLayer.status == .failed {
+        // build 47:鎖屏/背景一陣子後系統要求 flush 才續顯(requiresFlushToResumeDecoding)
+        if displayLayer.status == .failed || displayLayer.requiresFlushToResumeDecoding {
             displayLayer.flush()
         }
         displayLayer.enqueue(sampleBuffer)
@@ -172,9 +173,12 @@ final class PiPLyricsController: NSObject, ObservableObject {
 
     private static func createPixelBuffer(size: CGSize) -> CVPixelBuffer? {
         var pixelBuffer: CVPixelBuffer?
+        // build 47:必須 IOSurface backing — 缺它時模擬器正常、實機 PiP 全黑
+        // (PiP 視窗由系統跨行程渲染,無 IOSurface 的 buffer 無法共享)
         let attributes: [CFString: Any] = [
             kCVPixelBufferCGImageCompatibilityKey: true,
             kCVPixelBufferCGBitmapContextCompatibilityKey: true,
+            kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary,
         ]
         let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
