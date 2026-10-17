@@ -37,11 +37,15 @@ private struct LiveActivityStatusRow: View {
     @EnvironmentObject private var settings: SettingsStore
 
     var body: some View {
-        if settings.liveActivityEnabled, center.track != nil, !center.liveActivityActive {
-            if !center.liveActivityAuthorized {
-                row(text: "iOS 已停用 LyricFlow 的即時活動,鎖定畫面不會出現歌詞卡")
-            } else if let error = center.liveActivityLastError {
-                row(text: "即時活動建立失敗:\(error)")
+        if settings.liveActivityEnabled, center.track != nil {
+            if !center.widgetExtensionInstalled {
+                row(text: "本安裝缺少小工具擴充,即時活動與小工具都無法顯示(重簽 IPA 時被工具移除),請用完整 unsigned IPA 重新簽署安裝")
+            } else if !center.liveActivityActive {
+                if !center.liveActivityAuthorized {
+                    row(text: "iOS 已停用 LyricFlow 的即時活動,鎖定畫面不會出現歌詞卡")
+                } else if let error = center.liveActivityLastError {
+                    row(text: "即時活動建立失敗:\(error)")
+                }
             }
         }
     }

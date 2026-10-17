@@ -32,20 +32,14 @@ final class LiveActivityController {
             push(activity, state: state)
             return true
         }
-        // App 重啟後,系統可能仍有本 App 的活動 → 接回來用,不要重複建立。
-        // [修正] 只接回仍在顯示中的活動(.active/.stale);已結束/已關閉的殘留活動
-        // 一律終結後重建。若誤接死卡:isActive 恆為 true、更新全送進虛空,
-        // 鎖定畫面永遠不出現,而且沒有任何錯誤訊息可看。
+        // App 重啟後,系統可能仍有本 App 的活動。
+        // [修正 36] 不再沿用任何舊活動(含 .active):改為「結束舊卡 + 建立全新卡片」。
+        // 理由:重裝/重簽/系統內部狀態異常後,活動可能「狀態 .active、App 端全綠,
+        // 但鎖定畫面就是不渲染」(已知卡住型態;社群解法是把即時活動開關 off→on,
+        // 等同刪卡重建)。建立一張全新 ID 的卡片,讓 iOS 重新評估這張卡的顯示。
         for existing in Activity<LyricsActivityAttributes>.activities {
-            switch existing.activityState {
-            case .active, .stale:
-                activity = existing
-                push(existing, state: state)
-                return true
-            default:
-                let zombie = existing
-                Task { await zombie.end(dismissalPolicy: .immediate) }
-            }
+            let old = existing
+            Task { await old.end(dismissalPolicy: .immediate) }
         }
         // [修正] 不再用 areActivitiesEnabled 預先拒絕:反覆安裝/重簽後,
         // iOS 的 per-app 即時活動狀態可能過期失真。一律直接嘗試建立;

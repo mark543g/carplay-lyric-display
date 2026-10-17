@@ -61,6 +61,17 @@ final class PlaybackCenter: ObservableObject {
     var liveActivityLastError: String? { liveActivity.lastError }
     var liveActivityUpdateCount: Int { liveActivity.updateCount }
 
+    /// 安裝內是否嵌入小工具擴充(PlugIns/*.appex)。
+    /// 即時活動卡由此擴充渲染;若重簽工具把它移除,活動會建立成功(App 全綠)
+    /// 但鎖定畫面永遠渲染不出來 —— 這是唯一能造成「全綠卻無卡」的安裝層原因。
+    var widgetExtensionInstalled: Bool {
+        guard let plugIns = Bundle.main.builtInPlugInsURL,
+              let contents = try? FileManager.default.contentsOfDirectory(atPath: plugIns.path) else {
+            return false
+        }
+        return contents.contains { $0.hasSuffix(".appex") }
+    }
+
     // MARK: - 啟動
 
     func start() {

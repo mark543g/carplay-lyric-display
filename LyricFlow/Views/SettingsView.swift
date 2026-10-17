@@ -259,6 +259,10 @@ struct SettingsView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.trailing)
+                    Text("小工具擴充:\(center.widgetExtensionInstalled ? "已嵌入" : "缺失")・簽章 App Group:\(AppConstants.appGroupID)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
                 }
             }
         } header: {
