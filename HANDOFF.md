@@ -167,7 +167,7 @@ build 46 後使用者實測:PiP 視窗開啟但全黑。根因查證(Apple Devel
 | 43 | (本次) | 移除右半格 widget(兩格呈現被否決)、inline 改歌詞優先單行、LA 卡降為 $99 後備註 | CI 成功 |
 | 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 成功 |
 | 46 | (本次) | PiP 懸浮歌詞修正(離屏掛載/有效 PTS/自癒閘門/啟動即帶當前歌詞)、立動島→動態島 | CI 成功(run 47) |
-| 47 | (本次) | PiP 全黑根因修正:pixel buffer 加 IOSurface backing + requiresFlushToResumeDecoding flush | CI 執行中 |
+| 47 | (本次) | PiP 全黑根因修正:pixel buffer 加 IOSurface backing + requiresFlushToResumeDecoding flush | CI 成功(run 49) |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -185,7 +185,7 @@ build 46 後使用者實測:PiP 視窗開啟但全黑。根因查證(Apple Devel
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 49 預定 = build 47(PiP IOSurface 修正);run 47 = build 46 CI 成功、run 48 = docs
+- 最新:run 49 = build 47(47efeed,PiP IOSurface 根因修正)= CI 成功;artifact LyricFlow-1.0-49-unsigned-ipa
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。
