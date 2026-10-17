@@ -10,6 +10,7 @@ import SwiftUI
 struct LyricsWidgetBundle: WidgetBundle {
     var body: some Widget {
         LyricsWidget()
+        LyricsRectRightWidget()
         LyricsLiveActivity()
     }
 }

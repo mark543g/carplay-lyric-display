@@ -61,6 +61,14 @@
 系統層備案(懷疑 App 被系統終止時):iOS 26「設定 → 開發人員 → Fast App Termination」若開啟,系統會快速終止背景 App 導致活動停止更新;Apple 官方社群有關閉後恢復的案例。裝置端開關,非確證不動它。
 已知取捨:背景暫停若無通知送達,位置會多推算一段(下次狀態通知或回前景即校正);背景期間真正跨來源切換的歌曲要回前景才切。
 
+## 鎖定畫面呈現改版 — build 42(2026-10-17)
+
+使用者實測 widget 在鎖定畫面正常跟隨,決定以小工具為鎖定畫面主呈現,最下方 LA 卡移除:
+
+1. **LA 卡停用**:`SettingsStore.liveActivityEnabled` 預設改 `false`;一次性遷移鍵 `liveActivityMigratedV1` 把舊裝置曾為開的強制關(之後設定頁開關仍可手動開回);`PlaybackCenter.start()` 呼叫新增的 `LiveActivityController.endAll()` 清除系統殘存舊卡。移除範圍 = 鎖定畫面卡 + 動態島迷你卡(同一張活動)。**不受影響**:CarPlay 主畫面(`CPListTemplate`)、iOS 26 CarPlay/桌面 systemSmall widget、build 40 背景跟隨修復(留著,日後手動開回 LA 仍有效)。
+2. **全寬 = 左右兩格(Apple 硬限制)**:單一 accessoryRectangular 只能放時鐘下左或右一格 = 半寬,尺寸由 Apple 固定不可調。正解:新增第二個 widget「歌詞行・右半」(`AppConstants.lyricsWidgetRightKind`,僅 `.accessoryRectangular`),與既有「動態歌詞」左右並排 → 視覺全寬。左格 = 本行歌詞大字 + 歌名・歌手小字;右格 = 翻譯大字(無翻譯 → 下一行 → 歌名・歌手)。**需到鎖定畫面自訂把左右兩格各加一個才是全寬。**
+3. **字體放大**:rectangular 歌詞 `footnote` → `.title3.bold()`(lineLimit 2、minimumScaleFactor 0.6),原標題列移除讓位(無歌詞行時大字改顯歌名・歌手);右半格 `.title3.bold()` lineLimit 3。
+
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -113,7 +121,7 @@
 | `LyricFlow/Services/KeepAliveAudioPlayer.swift` | 背景保活 |
 | `LyricFlow/Services/SharedSnapshotWriter.swift` | 寫快照給 widget |
 | `LyricFlow/App/LyricFlowApp.swift` | scenePhase → ensureLiveActivity/ensureRunning |
-| `LyricFlow/App/SettingsStore.swift` | liveActivityEnabled/keepAliveEnabled 預設 true |
+| `LyricFlow/App/SettingsStore.swift` | liveActivityEnabled 預設 false(build 42 遷移強制關)、keepAliveEnabled 預設 true |
 | `LyricFlow/Views/RootView.swift` | 主畫面(banner 在 build 31 已回退移除) |
 | `LyricFlow/Views/SettingsView.swift` | 設定頁 |
 | `project.yml` | XcodeGen,含 `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon` |
@@ -139,6 +147,7 @@
 | 38 | 2a500db | docs: 完整重檢(IPA 輸入零變動驗證、社群同症狀證據、電腦端行動順序) | CI 成功 |
 | 39 | 6a17b55 | docs: 根因確認並解決(免費簽章額度用盡;iLoader 顯示、Sideloadly 靜默失敗) | CI 成功 |
 | 40 | d8f66e8 | 背景跟隨修復:Spotify 斷線保留推算錨點、背景釘住來源與不拆卡、Apple Music trusted 狀態分診、2 秒活動心跳 | CI 成功 |
+| 42 | (本次) | 鎖定畫面改版:LA 卡停用(預設關+一次性遷移+啟動 endAll)、widget 新增右半格拼全寬、歌詞字體 footnote→title3 放大 | CI 執行中 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -156,7 +165,7 @@
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 40(背景跟隨修復 — 背景釘住來源、斷線保留錨點、trusted 狀態、2 秒心跳)。
+- 最新:run 42(鎖定畫面改版 — LA 卡停用、widget 右半格全寬、字體放大;run 41=docs)
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。

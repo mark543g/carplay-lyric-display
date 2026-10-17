@@ -90,4 +90,14 @@ final class LiveActivityController {
             await activity.end(dismissalPolicy: .immediate)
         }
     }
+
+    /// 清除系統中所有本型別的活動(含 App 重啟後殘存的舊卡)。
+    /// [build 42] 鎖定畫面改以小工具呈現,啟動時全面清除殘存卡片。
+    func endAll() {
+        activity = nil
+        for existing in Activity<LyricsActivityAttributes>.activities {
+            let old = existing
+            Task { await old.end(dismissalPolicy: .immediate) }
+        }
+    }
 }

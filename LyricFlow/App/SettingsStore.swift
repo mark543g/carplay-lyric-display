@@ -16,6 +16,7 @@ final class SettingsStore: ObservableObject {
         static let musixmatchKey = "musixmatchKey"
         static let spotifyClientID = "spotifyClientID"
         static let liveActivityEnabled = "liveActivityEnabled"
+        static let liveActivityMigrated = "liveActivityMigratedV1"
         static let keepAliveEnabled = "keepAliveEnabled"
         static let showTranslation = "showTranslation"
         static let overlayEnabled = "overlayEnabled"
@@ -106,7 +107,14 @@ final class SettingsStore: ObservableObject {
         // [稽核 F1 修補] 憑證自 Keychain 載入
         musixmatchKey = KeychainStore.load(Keys.musixmatchKey) ?? ""
         spotifyClientID = KeychainStore.load(Keys.spotifyClientID) ?? ""
-        liveActivityEnabled = defaults.object(forKey: Keys.liveActivityEnabled) as? Bool ?? true
+        // [build 42] 鎖定畫面改以小工具呈現,即時活動預設移除:
+        // 一次性遷移 — 舊裝置若曾為開,強制關閉(日後仍可從設定手動開回)。
+        if defaults.object(forKey: Keys.liveActivityMigrated) == nil {
+            liveActivityEnabled = false
+            defaults.set(true, forKey: Keys.liveActivityMigrated)
+        } else {
+            liveActivityEnabled = defaults.object(forKey: Keys.liveActivityEnabled) as? Bool ?? false
+        }
         keepAliveEnabled = defaults.object(forKey: Keys.keepAliveEnabled) as? Bool ?? true
         showTranslation = defaults.object(forKey: Keys.showTranslation) as? Bool ?? true
         overlayEnabled = defaults.object(forKey: Keys.overlayEnabled) as? Bool ?? false

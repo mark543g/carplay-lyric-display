@@ -79,6 +79,9 @@ final class PlaybackCenter: ObservableObject {
     func start() {
         guard ticker == nil else { return }
 
+        // [build 42] 鎖定畫面歌詞改由小工具呈現:啟動時清除系統殘存的舊即時活動卡
+        liveActivity.endAll()
+
         // Apple Music 監聽
         appleMusic.onTrackChange = { [weak self] track in
             self?.syncCandidateTracks()
