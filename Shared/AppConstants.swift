@@ -39,9 +39,22 @@ public enum AppConstants {
         return injected ?? "group.com.lab.lyricflow"
     }
 
-    /// 解析內嵌 provisioning profile(免費/開發簽章會內嵌)取得實際核發的 App Group。
+    /// 解析內嵌 provisioning profile(免費/開發簽章會內嵌)取得 plist。
     private static func provisionedAppGroupID() -> String? {
-        let url = Bundle.main.bundleURL.appendingPathComponent("embedded.mobileprovision")
+        guard let entitlements = embeddedProfilePlist(bundleURL: Bundle.main.bundleURL)?["Entitlements"] as? [String: Any],
+              let groups = entitlements["com.apple.security.application-groups"] as? [String],
+              let first = groups.first else { return nil }
+        return first
+    }
+
+    /// 讀取指定 bundle 內嵌的 provisioning profile plist(無則 nil)。
+    ///
+    /// 診斷用:主 App 與小工具擴充(.appex)各自內嵌的描述檔,是
+    /// iOS 決定要不要載入擴充的依據。免費 Apple ID + Sideloadly 簽章下,
+    /// Apple 2026-09/10 收緊後可能只核發涵蓋主 App 的描述檔 →
+    /// 擴充不被載入 → 即時活動卡無人渲染 + 小工具清單裡看不到本 App。
+    private static func embeddedProfilePlist(bundleURL: URL) -> [String: Any]? {
+        let url = bundleURL.appendingPathComponent("embedded.mobileprovision")
         guard let data = try? Data(contentsOf: url),
               let raw = String(data: data, encoding: .isoLatin1),
               let start = raw.range(of: "<plist"),
@@ -50,11 +63,25 @@ public enum AppConstants {
         let plistString = String(raw[start.lowerBound..<end.upperBound])
         guard let plistData = plistString.data(using: .utf8),
               let plistAny = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil),
-              let plist = plistAny as? [String: Any],
-              let entitlements = plist["Entitlements"] as? [String: Any],
-              let groups = entitlements["com.apple.security.application-groups"] as? [String],
-              let first = groups.first else { return nil }
-        return first
+              let plist = plistAny as? [String: Any] else { return nil }
+        return plist
+    }
+
+    /// 主 App 描述檔的 application-identifier
+    /// (如 `TEAMID.com.lab.lyricflow` 指定型,或 `TEAMID.*` 萬用型 —
+    /// 萬用型才可能涵蓋小工具擴充的 bundle ID)。
+    public static var mainAppApplicationIdentifier: String? {
+        guard let entitlements = embeddedProfilePlist(bundleURL: Bundle.main.bundleURL)?["Entitlements"] as? [String: Any] else { return nil }
+        return entitlements["application-identifier"] as? String
+    }
+
+    /// 小工具擴充(.appex)本身是否內嵌描述檔(缺失 = iOS 不載入擴充,
+    /// 即時活動與小工具都無法顯示)。
+    public static var widgetExtensionProfileEmbedded: Bool {
+        guard let plugIns = Bundle.main.builtInPlugInsURL,
+              let contents = try? FileManager.default.contentsOfDirectory(atPath: plugIns.path),
+              let appex = contents.first(where: { $0.hasSuffix(".appex") }) else { return false }
+        return embeddedProfilePlist(bundleURL: plugIns.appendingPathComponent(appex, isDirectory: true)) != nil
     }
 
     /// 桌面小工具的 kind(WidgetKit 註冊用)。
