@@ -154,7 +154,7 @@
 | 40 | d8f66e8 | 背景跟隨修復:Spotify 斷線保留推算錨點、背景釘住來源與不拆卡、Apple Music trusted 狀態分診、2 秒活動心跳 | CI 成功 |
 | 42 | (本次) | 鎖定畫面改版:LA 卡停用(預設關+一次性遷移+啟動 endAll)、widget 新增右半格拼全寬、歌詞字體 footnote→title3 放大 | CI 成功 |
 | 43 | (本次) | 移除右半格 widget(兩格呈現被否決)、inline 改歌詞優先單行、LA 卡降為 $99 後備註 | CI 成功 |
-| 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 執行中 |
+| 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 成功 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
