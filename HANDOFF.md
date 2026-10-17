@@ -34,6 +34,13 @@
 
 修復動作(全在電腦端):① 更新 Sideloadly 至最新版重簽;② 換一顆 Apple ID 重簽(新團隊 = 乾淨描述檔;About 頁 App Group 後綴會變,可目視確認)。build 37 關於頁新增「描述檔 App ID」(萬用 `TEAMID.*` vs 指定)與「擴充描述檔:內嵌/缺失」,重簽前後對照即可見簽章差異。
 
+### 完整重檢(2026-10-17,模型換新後)
+- **輸入端零變動已驗證**:`git log fa22627..HEAD -- .github/` 為空(CI 打包流程自 run 26 起未動);`4d88f21` 僅改 Swift + project.yml 圖示行。即 26→37 的 IPA 結構相同 → 結果不同只能來自簽章環境(Sideloadly↔Apple)。
+- **社群證據同症狀**:r/ApolloReborn(2026-07)「Sideloadly 簽的 app widget 都出不來,改用 Impactor 後 widget 正常」;Reddit(2020)「sideload 後 widget 從未出現在清單」— 與簽名工具/免費帳號 App ID 覆蓋相關;AltStore 支援流程要求確認 widget 擴充的 App ID 是否存在(擴充需獨立 App ID,免費團隊 10 個/7 天額度)。
+- **已排除**(使用者實測+程式碼驗證):iPhone 所有相關設定、Focus/排程、重開機、重裝、程式碼(`.accessoryRectangular` 有宣告)、輸入 IPA 變動。
+- **電腦端行動順序**:① 更新 Sideloadly 重簽;② 換簽名工具(AltServer/AltStore 或 Impactor — 社群對此症狀的直接解法);③ 換 Apple ID(新團隊,順帶重置 10-App-ID/7 天額度);④ 付費 Developer Program($99/yr)= 永久解(同時解鎖 APNs LA 推播、CarPlay playable-content、ShazamKit、1 年憑證 — 本專案被免費層卡住的全部項目)。
+- 程式端無遺留可修項:LA 視圖必須由 widget 擴充渲染,擴充載入與否完全由簽章驗證決定。
+
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -126,7 +133,7 @@
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 37(簽章診斷顯示 — 描述檔 App ID、擴充描述檔內嵌/缺失)。
-- 根因:iOS 不載入小工具擴充(簽章層);修復在電腦端:更新 Sideloadly 或換 Apple ID 重簽。
+- 最新:run 37(`c14161b`,簽章診斷顯示 — 描述檔 App ID、擴充描述檔內嵌/缺失)。
+- 根因:iOS 不載入小工具擴充(簽章層,社群有同症狀報告指向簽名工具);修復在電腦端,行動順序見「完整重檢」段。程式端已窮盡。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。
