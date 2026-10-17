@@ -133,7 +133,6 @@ struct LyricsWidget: Widget {
             .systemSmall,
             .systemMedium,
             .systemLarge,
-            .accessoryInline,
             .accessoryRectangular,
             .accessoryCircular,
         ])
@@ -160,8 +159,6 @@ struct LyricsWidgetView: View {
                 MediumLyricsView(entry: entry)
             case .systemLarge:
                 LargeLyricsView(entry: entry)
-            case .accessoryInline:
-                InlineLyricsView(entry: entry)
             case .accessoryRectangular:
                 RectangularLyricsView(entry: entry)
             case .accessoryCircular:
@@ -180,7 +177,7 @@ struct LyricsWidgetView: View {
     }
 }
 
-// MARK: - 小型(桌面 / StandBy / CarPlay)
+// MARK: - 小型(主畫面 / StandBy / CarPlay)
 
 private struct SmallLyricsView: View {
     let entry: LyricsWidgetEntry
@@ -329,23 +326,6 @@ private struct LargeLyricsView: View {
 }
 
 // MARK: - 鎖定畫面配件
-
-private struct InlineLyricsView: View {
-    let entry: LyricsWidgetEntry
-
-    // [build 43] 鎖定畫面主呈現:inline 一行(時鐘上方、全寬) = 歌詞優先
-    var body: some View {
-        Text(text)
-    }
-
-    private var text: String {
-        if let line = entry.activeLine?.text, !line.isEmpty { return line }
-        if let s = entry.snapshot {
-            return s.artist.isEmpty ? s.title : "\(s.title) · \(s.artist)"
-        }
-        return "LyricFlow"
-    }
-}
 
 private struct RectangularLyricsView: View {
     let entry: LyricsWidgetEntry

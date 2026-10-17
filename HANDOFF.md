@@ -70,6 +70,10 @@
 3. **字體放大**:rectangular 歌詞 `footnote` → `.title3.bold()`(lineLimit 2、minimumScaleFactor 0.6),原標題列移除讓位(無歌詞行時大字改顯歌名・歌手);右半格 `.title3.bold()` lineLimit 3。
 
 **build 43 使用者實測後續**:左右兩格呈現被否決(很糟) → 移除右半格 widget(`lyricsWidgetRightKind` 一併刪除),鎖定畫面主呈現改用 inline 一行(時鐘上方、真全寬;字級由系統鎖死無法放大 — inline 硬限制)。**LA 卡 = 備註**:真全寬 + 可控大字的正解仍是即時活動卡,待 $99 付費帳號(解鎖 APNs,背景更新不再被節流)後再啟用;build 42 保留的設定開關可隨時手動開回。
+## 放棄 inline 與 README 重寫 — build 45(2026-10-18)
+
+1. **放棄 accessoryInline**:使用者實測時鐘上方 inline 完全不更新 — 與 rectangular 同一 widget kind、同一預生成時間軸,rectangular 會跟隨而 inline 永遠停在加入時那一行。判定為 WidgetKit/鎖定畫面對 inline 家族的平台行為(不主動重繪),程式端無可用更新鈎子。處置:`.accessoryInline` 從 supportedFamilies 移除、`InlineLyricsView` 刪除。鎖定畫面歌詞現況:rectangular(左右兩格、各半寬)= 唯一跟得穩的 widget;LA 卡 = 備援($99 解鎖 APNs 後)。
+2. **README 全面重寫**:功能總覽對齊現況(LA 預設停用、inline 已移除、識歌/CarPlay 傳統頁標註需付費帳號)、新增「鎖定畫面歌詞的現況」與「免費簽章的額度陷阱」段、台灣用語全面校正(桌面→主畫面、立動島→動態島、備案→備援方案、資料外送→資料流向、發布→發佈等)。
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -150,6 +154,7 @@
 | 40 | d8f66e8 | 背景跟隨修復:Spotify 斷線保留推算錨點、背景釘住來源與不拆卡、Apple Music trusted 狀態分診、2 秒活動心跳 | CI 成功 |
 | 42 | (本次) | 鎖定畫面改版:LA 卡停用(預設關+一次性遷移+啟動 endAll)、widget 新增右半格拼全寬、歌詞字體 footnote→title3 放大 | CI 成功 |
 | 43 | (本次) | 移除右半格 widget(兩格呈現被否決)、inline 改歌詞優先單行、LA 卡降為 $99 後備註 | CI 成功 |
+| 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 執行中 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -167,7 +172,7 @@
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 43(移除右半格 widget、inline 歌詞優先;run 42 = CI 成功)
+- 最新:run 45(放棄 inline + README 重寫;run 43/44 = CI 成功)
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。
