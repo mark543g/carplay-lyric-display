@@ -209,6 +209,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { context in
             let rect = CGRect(origin: .zero, size: size)
+            let scale = CGFloat(SettingsStore.shared.pipFontScale)
 
             // 背景:深色漸層
             let colors = [UIColor(white: 0.10, alpha: 1).cgColor, UIColor(white: 0.04, alpha: 1).cgColor]
@@ -222,7 +223,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
 
             // 頂部:曲目名稱(小字)
             let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 30, weight: .semibold),
+                .font: UIFont.systemFont(ofSize: 30 * scale, weight: .semibold),
                 .foregroundColor: UIColor.white.withAlphaComponent(0.55),
             ]
             let titleString = NSAttributedString(string: frame.trackTitle, attributes: titleAttributes)
@@ -237,7 +238,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
             // 中央:當前歌詞行(大字、自動換行、向上置中)
             let maxWidth = size.width * 0.82
             let lineAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 64, weight: .bold),
+                .font: UIFont.systemFont(ofSize: 64 * scale, weight: .bold),
                 .foregroundColor: UIColor.white,
             ]
             let lineString = NSAttributedString(string: frame.line.isEmpty ? "♪" : frame.line, attributes: lineAttributes)
@@ -250,7 +251,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
             var translationHeight: CGFloat = 0
             if let translation = frame.translation, !translation.isEmpty {
                 let translationAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 40, weight: .medium),
+                    .font: UIFont.systemFont(ofSize: 40 * scale, weight: .medium),
                     .foregroundColor: UIColor.white.withAlphaComponent(0.8),
                 ]
                 let translationString = NSAttributedString(string: translation, attributes: translationAttributes)
@@ -277,7 +278,7 @@ final class PiPLyricsController: NSObject, ObservableObject {
             // 下方:譯文
             if let translation = frame.translation, !translation.isEmpty {
                 let translationAttributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 40, weight: .medium),
+                    .font: UIFont.systemFont(ofSize: 40 * scale, weight: .medium),
                     .foregroundColor: UIColor.white.withAlphaComponent(0.8),
                 ]
                 let translationString = NSAttributedString(string: translation, attributes: translationAttributes)

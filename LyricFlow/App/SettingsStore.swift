@@ -22,6 +22,7 @@ final class SettingsStore: ObservableObject {
         static let overlayEnabled = "overlayEnabled"
         static let overlayPosition = "overlayPosition"
         static let fullScreenFontScale = "fullScreenFontScale"
+        static let pipFontScale = "pipFontScale"
         static let spotifyConnectedOnce = "spotifyConnectedOnce"
     }
 
@@ -75,6 +76,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(fullScreenFontScale, forKey: Keys.fullScreenFontScale) }
     }
 
+    /// 畫中畫字級縮放(0.8 ~ 2.0,預設 1.0)。
+    @Published var pipFontScale: Double {
+        didSet { defaults.set(pipFontScale, forKey: Keys.pipFontScale) }
+    }
+
     /// 懸浮窗位置(normalized x/y,0~1)。
     @Published var overlayPosition: CGPoint {
         didSet {
@@ -119,6 +125,7 @@ final class SettingsStore: ObservableObject {
         showTranslation = defaults.object(forKey: Keys.showTranslation) as? Bool ?? true
         overlayEnabled = defaults.object(forKey: Keys.overlayEnabled) as? Bool ?? false
         fullScreenFontScale = defaults.object(forKey: Keys.fullScreenFontScale) as? Double ?? 1.0
+        pipFontScale = defaults.object(forKey: Keys.pipFontScale) as? Double ?? 1.0
 
         if let raw = defaults.string(forKey: Keys.overlayPosition),
            let x = Double(raw.components(separatedBy: ",").first ?? ""),

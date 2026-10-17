@@ -206,6 +206,13 @@ struct SettingsView: View {
             Toggle("即時活動(鎖定畫面 / 動態島 / CarPlay / Watch)", isOn: $settings.liveActivityEnabled)
             Toggle("背景保活(播放中持續更新歌詞)", isOn: $settings.keepAliveEnabled)
             Toggle("App 內懸浮歌詞", isOn: $settings.overlayEnabled)
+
+            Stepper(
+                "畫中畫字級 \(Int((settings.pipFontScale * 100).rounded()))%",
+                value: $settings.pipFontScale,
+                in: 0.8...2.0,
+                step: 0.1
+            )
         } header: {
             Text("顯示與背景")
         } footer: {

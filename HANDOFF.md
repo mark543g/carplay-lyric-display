@@ -85,6 +85,10 @@
 
 build 46 後使用者實測:PiP 視窗開啟但全黑。根因查證(Apple Developer Forums + Stack Overflow 確認):**AVSampleBufferDisplayLayer 的 pixel buffer 必須以 IOSurface backing** — 缺 kCVPixelBufferIOSurfacePropertiesKey 時「模擬器正常、實機完全不渲染」(status 無錯誤、isReadyForMoreMediaData=true,就是不顯示),與症狀吻合;PiP 視窗由系統跨行程渲染,無 IOSurface 的 buffer 無法共享。處置:createPixelBuffer 加 IOSurface key;另加 requiresFlushToResumeDecoding → flush(鎖屏一段時間後黑屏的官方解法)。build 46 的離屏掛載/有效 PTS/自癒閘門仍是必要修正,但非全黑主因。
 
+## 畫中畫字級可調 — build 48(2026-10-18)
+
+使用者要求 PiP 字體大一點或可調整。新增 pipFontScale(SettingsStore,0.8~2.0、步進 0.1、預設 1.0、didSet 持久化),Settings「顯示與背景」加 Stepper「畫中畫字級 %」;renderImage 三種字級(歌詞 64 / 譯文 40 / 曲名 30)全部乘上 scale。與全螢幕歌詞既有的 fullScreenFontScale 同款機制。
+
 ## 使用者約束(必須遵守)
 - **不要叫使用者測試、檢查設定、回報畫面內容**。使用者明確表示「我不想測」「我不應該是你的測試人員」「不要一直讓我測試」。
 - 回覆用**繁體中文**。
@@ -168,6 +172,7 @@ build 46 後使用者實測:PiP 視窗開啟但全黑。根因查證(Apple Devel
 | 45 | (本次) | 放棄 inline(accessoryInline 移除、InlineLyricsView 刪除)、README 全面重寫(功能對齊現況+台灣用語) | CI 成功 |
 | 46 | (本次) | PiP 懸浮歌詞修正(離屏掛載/有效 PTS/自癒閘門/啟動即帶當前歌詞)、立動島→動態島 | CI 成功(run 47) |
 | 47 | (本次) | PiP 全黑根因修正:pixel buffer 加 IOSurface backing + requiresFlushToResumeDecoding flush | CI 成功(run 49) |
+| 48 | (本次) | PiP 字級可調:pipFontScale(0.8~2.0)+ 設定 Stepper | CI 執行中 |
 
 ## 已知 iOS 限制(非程式碼可修)
 1. **無 APNs → 背景 LA update 被節流**:iOS 不支援無 push 的頻繁背景更新(Apple 論壇 748569 + iDownloadBlog iOS 18 節流 5-15 秒)。
@@ -185,7 +190,7 @@ build 46 後使用者實測:PiP 視窗開啟但全黑。根因查證(Apple Devel
   - 不依賴 App 存活、不需 APNs 的逐行推進替代路徑:widget(accessoryRectangular)預生成 timeline。
 
 ## 目前 CI 狀態
-- 最新:run 49 = build 47(47efeed,PiP IOSurface 根因修正)= CI 成功;artifact LyricFlow-1.0-49-unsigned-ipa
+- 最新:run 51 預定 = build 48(PiP 字級可調);run 49 = build 47 CI 成功、run 50 = docs
 - 根因已確認並解決(2026-10-17):免費 Apple ID 簽章額度用盡;Sideloadly 靜默簽出壞 profile 且不顯示錯誤,iLoader 明確報「憑證達到上限」,重新簽發後 LA 與 widget 正常。詳見「最終確認與解法」段。程式端已窮盡、無需再改。
 - 使用者實測:26(初次安裝)可顯示;之後所有安裝(含 26 重裝、34-36)皆無卡、無 widget。
 - 下載 unsigned IPA 後以 Sideloadly(免費 Apple ID)重簽安裝。
