@@ -338,7 +338,7 @@ extension SpotifyService: SPTAppRemoteDelegate {
                 self.lastPlayerState = nil
             }
             // 背景斷線:保留 lastPlayerState 作為位置推算錨點 — 清除會讓歌詞卡
-            // 立即凍結在斷線瞬間(背景跟隨修正,build 38)。重連時由新狀態校正。
+            // 立即凍結在斷線瞬間(背景跟隨修正,build 40)。重連時由新狀態校正。
         }
     }
 
